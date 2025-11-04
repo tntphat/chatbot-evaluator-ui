@@ -211,7 +211,7 @@ export default function CampaignDetailPage() {
                   : 'Needs Optimization'
               }
               changeType={
-                campaign.results.avgResponseTime < 500 ? 'positive' : 'warning'
+                campaign.results.avgResponseTime < 500 ? 'positive' : 'negative'
               }
             />
           </div>

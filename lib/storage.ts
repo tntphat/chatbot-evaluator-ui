@@ -58,8 +58,8 @@ export function getByIdFromStorage<T extends { id: string }>(
 
 // Specific storage functions
 export const ChatbotStorage = {
-  getAll: () => getFromStorage(STORAGE_KEYS.CHATBOTS),
-  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.CHATBOTS, id),
+  getAll: () => getFromStorage(STORAGE_KEYS.CHATBOTS) as any[],
+  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.CHATBOTS, id) as any,
   add: (chatbot: any) => addToStorage(STORAGE_KEYS.CHATBOTS, chatbot),
   update: (id: string, updates: any) =>
     updateInStorage(STORAGE_KEYS.CHATBOTS, id, updates),
@@ -67,8 +67,8 @@ export const ChatbotStorage = {
 };
 
 export const CampaignStorage = {
-  getAll: () => getFromStorage(STORAGE_KEYS.CAMPAIGNS),
-  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.CAMPAIGNS, id),
+  getAll: () => getFromStorage(STORAGE_KEYS.CAMPAIGNS) as any[],
+  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.CAMPAIGNS, id) as any,
   add: (campaign: any) => addToStorage(STORAGE_KEYS.CAMPAIGNS, campaign),
   update: (id: string, updates: any) =>
     updateInStorage(STORAGE_KEYS.CAMPAIGNS, id, updates),
@@ -76,8 +76,8 @@ export const CampaignStorage = {
 };
 
 export const DatasetStorage = {
-  getAll: () => getFromStorage(STORAGE_KEYS.DATASETS),
-  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.DATASETS, id),
+  getAll: () => getFromStorage(STORAGE_KEYS.DATASETS) as any[],
+  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.DATASETS, id) as any,
   add: (dataset: any) => addToStorage(STORAGE_KEYS.DATASETS, dataset),
   update: (id: string, updates: any) =>
     updateInStorage(STORAGE_KEYS.DATASETS, id, updates),
@@ -85,12 +85,12 @@ export const DatasetStorage = {
 };
 
 export const EvaluationStorage = {
-  getAll: () => getFromStorage(STORAGE_KEYS.EVALUATIONS),
+  getAll: () => getFromStorage(STORAGE_KEYS.EVALUATIONS) as any[],
   getByCampaign: (campaignId: string) =>
-    getFromStorage(STORAGE_KEYS.EVALUATIONS).filter(
+    (getFromStorage(STORAGE_KEYS.EVALUATIONS) as any[]).filter(
       (item: any) => item.campaignId === campaignId
     ),
-  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.EVALUATIONS, id),
+  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.EVALUATIONS, id) as any,
   add: (evaluation: any) => addToStorage(STORAGE_KEYS.EVALUATIONS, evaluation),
   update: (id: string, updates: any) =>
     updateInStorage(STORAGE_KEYS.EVALUATIONS, id, updates),
@@ -98,8 +98,8 @@ export const EvaluationStorage = {
 };
 
 export const ABTestStorage = {
-  getAll: () => getFromStorage(STORAGE_KEYS.AB_TESTS),
-  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.AB_TESTS, id),
+  getAll: () => getFromStorage(STORAGE_KEYS.AB_TESTS) as any[],
+  getById: (id: string) => getByIdFromStorage(STORAGE_KEYS.AB_TESTS, id) as any,
   add: (abTest: any) => addToStorage(STORAGE_KEYS.AB_TESTS, abTest),
   update: (id: string, updates: any) =>
     updateInStorage(STORAGE_KEYS.AB_TESTS, id, updates),
