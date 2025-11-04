@@ -17,7 +17,7 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     const id = params.id as string;
-    const campaignData = CampaignStorage.getById(id);
+    const campaignData = CampaignStorage.getById(id) as Campaign | null;
 
     if (!campaignData) {
       alert('Campaign not found!');
@@ -26,7 +26,7 @@ export default function CampaignDetailPage() {
     }
 
     setCampaign(campaignData);
-    setChatbots(ChatbotStorage.getAll());
+    setChatbots(ChatbotStorage.getAll() as Chatbot[]);
   }, [params.id, router]);
 
   if (!campaign) {

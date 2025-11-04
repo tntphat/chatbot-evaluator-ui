@@ -18,7 +18,7 @@ export default function DatasetDetailPage() {
 
   useEffect(() => {
     const id = params.id as string;
-    const datasetData = DatasetStorage.getById(id);
+    const datasetData = DatasetStorage.getById(id) as TestDataset | null;
 
     if (!datasetData) {
       alert('Dataset not found!');
