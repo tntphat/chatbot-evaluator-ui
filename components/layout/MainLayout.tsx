@@ -16,7 +16,11 @@ import { usePathname } from 'next/navigation';
 
 const { Header, Sider, Content } = Layout;
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+export default function MainLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const {
@@ -54,7 +58,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   // Find selected key based on pathname
   const getSelectedKey = () => {
     if (pathname === '/') return '/';
-    const matchedItem = menuItems.find(item => pathname.startsWith(item.key));
+    // Sort by length descending to match most specific routes first
+    const sortedItems = [...menuItems].sort(
+      (a, b) => b.key.length - a.key.length
+    );
+    const matchedItem = sortedItems.find(
+      (item) => item.key !== '/' && pathname.startsWith(item.key)
+    );
     return matchedItem ? matchedItem.key : '/';
   };
 
@@ -94,7 +104,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           items={menuItems}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
+      <Layout
+        style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}
+      >
         <Header
           style={{
             padding: '0 24px',
@@ -133,5 +145,3 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </Layout>
   );
 }
-
-

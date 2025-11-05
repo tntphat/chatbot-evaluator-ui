@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Button, Typography, Space } from 'antd';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Table,
+  Tag,
+  Button,
+  Typography,
+  Space,
+} from 'antd';
 import {
   RocketOutlined,
   PlayCircleOutlined,
@@ -18,10 +28,12 @@ import {
 } from '@/lib/storage';
 import type { Campaign } from '@/lib/types';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const { Title, Paragraph } = Typography;
 
 export default function Dashboard() {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState({
     totalCampaigns: 0,
@@ -91,8 +103,8 @@ export default function Dashboard() {
       dataIndex: 'name',
       key: 'name',
       render: (text: string, record: Campaign) => (
-        <Link href={`/campaigns/${record.id}`}>
-          <a style={{ fontWeight: 600 }}>{text}</a>
+        <Link href={`/campaigns/${record.id}`} style={{ fontWeight: 600 }}>
+          {text}
         </Link>
       ),
     },
@@ -118,11 +130,9 @@ export default function Dashboard() {
       title: 'Action',
       key: 'action',
       render: (_: any, record: Campaign) => (
-        <Link href={`/campaigns/${record.id}`}>
-          <Button type='link' size='small'>
-            View Details →
-          </Button>
-        </Link>
+        <Button type='link' size='small' href={`/campaigns/${record.id}`}>
+          View Details →
+        </Button>
       ),
     },
   ];
@@ -156,7 +166,11 @@ export default function Dashboard() {
               title='Active Campaigns'
               value={stats.activeCampaigns}
               prefix={<PlayCircleOutlined />}
-              valueStyle={{ color: stats.activeCampaigns > 0 ? '#3f8600' : '#666' }}
+              styles={{
+                content: {
+                  color: stats.activeCampaigns > 0 ? '#3f8600' : '#666',
+                },
+              }}
             />
           </Card>
         </Col>
@@ -167,8 +181,15 @@ export default function Dashboard() {
               value={stats.avgQuality}
               suffix='/ 5'
               prefix={<StarOutlined />}
-              valueStyle={{
-                color: stats.avgQuality >= 4 ? '#3f8600' : stats.avgQuality >= 3 ? '#fa8c16' : '#cf1322',
+              styles={{
+                content: {
+                  color:
+                    stats.avgQuality >= 4
+                      ? '#3f8600'
+                      : stats.avgQuality >= 3
+                      ? '#fa8c16'
+                      : '#cf1322',
+                },
               }}
             />
           </Card>
@@ -180,7 +201,11 @@ export default function Dashboard() {
               value={stats.avgPassRate}
               suffix='%'
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: stats.avgPassRate >= 85 ? '#3f8600' : '#cf1322' }}
+              styles={{
+                content: {
+                  color: stats.avgPassRate >= 85 ? '#3f8600' : '#cf1322',
+                },
+              }}
             />
           </Card>
         </Col>
@@ -212,9 +237,9 @@ export default function Dashboard() {
       <Card
         title='Recent Campaigns'
         extra={
-          <Link href='/campaigns/new'>
-            <Button type='primary'>+ New Campaign</Button>
-          </Link>
+          <Button type='primary' href='/campaigns/new'>
+            + New Campaign
+          </Button>
         }
       >
         {campaigns.length === 0 ? (
@@ -225,11 +250,14 @@ export default function Dashboard() {
             <Paragraph style={{ color: '#999' }}>
               Create your first evaluation campaign to get started
             </Paragraph>
-            <Link href='/campaigns/new'>
-              <Button type='primary' size='large' style={{ marginTop: 16 }}>
-                Create Campaign
-              </Button>
-            </Link>
+            <Button
+              type='primary'
+              size='large'
+              style={{ marginTop: 16 }}
+              href='/campaigns/new'
+            >
+              Create Campaign
+            </Button>
           </div>
         ) : (
           <Table
@@ -244,52 +272,61 @@ export default function Dashboard() {
       <Card title='Quick Actions' style={{ marginTop: 24 }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8}>
-            <Link href='/campaigns/new'>
-              <Card
-                hoverable
-                style={{ textAlign: 'center', borderStyle: 'dashed' }}
-              >
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
-                <Title level={4} style={{ marginBottom: 8 }}>
-                  New Campaign
-                </Title>
-                <Paragraph style={{ color: '#666', marginBottom: 0 }}>
-                  Start evaluation
-                </Paragraph>
-              </Card>
-            </Link>
+            <Card
+              hoverable
+              style={{
+                textAlign: 'center',
+                borderStyle: 'dashed',
+                cursor: 'pointer',
+              }}
+              onClick={() => router.push('/campaigns/new')}
+            >
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
+              <Title level={4} style={{ marginBottom: 8 }}>
+                New Campaign
+              </Title>
+              <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                Start evaluation
+              </Paragraph>
+            </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Link href='/datasets'>
-              <Card
-                hoverable
-                style={{ textAlign: 'center', borderStyle: 'dashed' }}
-              >
-                <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
-                <Title level={4} style={{ marginBottom: 8 }}>
-                  Manage Datasets
-                </Title>
-                <Paragraph style={{ color: '#666', marginBottom: 0 }}>
-                  Create test data
-                </Paragraph>
-              </Card>
-            </Link>
+            <Card
+              hoverable
+              style={{
+                textAlign: 'center',
+                borderStyle: 'dashed',
+                cursor: 'pointer',
+              }}
+              onClick={() => router.push('/datasets')}
+            >
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
+              <Title level={4} style={{ marginBottom: 8 }}>
+                Manage Datasets
+              </Title>
+              <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                Create test data
+              </Paragraph>
+            </Card>
           </Col>
           <Col xs={24} sm={8}>
-            <Link href='/comparison'>
-              <Card
-                hoverable
-                style={{ textAlign: 'center', borderStyle: 'dashed' }}
-              >
-                <div style={{ fontSize: 48, marginBottom: 16 }}>⚖️</div>
-                <Title level={4} style={{ marginBottom: 8 }}>
-                  Compare Chatbots
-                </Title>
-                <Paragraph style={{ color: '#666', marginBottom: 0 }}>
-                  A/B testing
-                </Paragraph>
-              </Card>
-            </Link>
+            <Card
+              hoverable
+              style={{
+                textAlign: 'center',
+                borderStyle: 'dashed',
+                cursor: 'pointer',
+              }}
+              onClick={() => router.push('/comparison')}
+            >
+              <div style={{ fontSize: 48, marginBottom: 16 }}>⚖️</div>
+              <Title level={4} style={{ marginBottom: 8 }}>
+                Compare Chatbots
+              </Title>
+              <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                A/B testing
+              </Paragraph>
+            </Card>
           </Col>
         </Row>
       </Card>

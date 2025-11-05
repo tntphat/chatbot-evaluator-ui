@@ -51,7 +51,9 @@ export default function CampaignDetailPage() {
   }, [params.id, router]);
 
   if (!campaign) {
-    return <div style={{ textAlign: 'center', padding: '60px 0' }}>Loading...</div>;
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 0' }}>Loading...</div>
+    );
   }
 
   const getStatusTag = (status: Campaign['status']) => {
@@ -113,7 +115,9 @@ export default function CampaignDetailPage() {
             {campaign.status === 'running' && (
               <Button
                 icon={<PauseCircleOutlined />}
-                onClick={() => message.info('Feature coming soon: Pause campaign')}
+                onClick={() =>
+                  message.info('Feature coming soon: Pause campaign')
+                }
               >
                 Pause
               </Button>
@@ -122,7 +126,9 @@ export default function CampaignDetailPage() {
               <Button
                 type='primary'
                 icon={<DownloadOutlined />}
-                onClick={() => message.info('Feature coming soon: Download report')}
+                onClick={() =>
+                  message.info('Feature coming soon: Download report')
+                }
               >
                 Download Report
               </Button>
@@ -167,7 +173,8 @@ export default function CampaignDetailPage() {
                   value={campaign.results.passRate}
                   suffix='%'
                   valueStyle={{
-                    color: campaign.results.passRate >= 85 ? '#3f8600' : '#cf1322',
+                    color:
+                      campaign.results.passRate >= 85 ? '#3f8600' : '#cf1322',
                   }}
                 />
               </Card>
@@ -179,7 +186,10 @@ export default function CampaignDetailPage() {
                   value={campaign.results.avgQualityScore}
                   suffix='/ 5'
                   valueStyle={{
-                    color: campaign.results.avgQualityScore >= 4 ? '#3f8600' : '#fa8c16',
+                    color:
+                      campaign.results.avgQualityScore >= 4
+                        ? '#3f8600'
+                        : '#fa8c16',
                   }}
                 />
               </Card>
@@ -200,7 +210,10 @@ export default function CampaignDetailPage() {
                   value={campaign.results.avgResponseTime}
                   suffix='ms'
                   valueStyle={{
-                    color: campaign.results.avgResponseTime < 500 ? '#3f8600' : '#cf1322',
+                    color:
+                      campaign.results.avgResponseTime < 500
+                        ? '#3f8600'
+                        : '#cf1322',
                   }}
                 />
               </Card>
@@ -284,13 +297,17 @@ export default function CampaignDetailPage() {
           <Button
             type='primary'
             icon={<FileTextOutlined />}
-            onClick={() => message.info('Feature coming in Phase 2: Export PDF report')}
+            onClick={() =>
+              message.info('Feature coming in Phase 2: Export PDF report')
+            }
           >
             Export Report (PDF)
           </Button>
           <Button
             icon={<TableOutlined />}
-            onClick={() => message.info('Feature coming in Phase 2: Export CSV data')}
+            onClick={() =>
+              message.info('Feature coming in Phase 2: Export CSV data')
+            }
           >
             Export Data (CSV)
           </Button>

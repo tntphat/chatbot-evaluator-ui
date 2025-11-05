@@ -1,8 +1,17 @@
 'use client';
 
-import { Card, Button, Tag, Typography, Row, Col, Statistic, Space, List } from 'antd';
+import {
+  Card,
+  Button,
+  Tag,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+  Space,
+  List,
+} from 'antd';
 import { StarOutlined, FilterOutlined, EyeOutlined } from '@ant-design/icons';
-import Link from 'next/link';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -46,7 +55,9 @@ export default function EvaluationsPage() {
       in_review: 'orange',
       completed: 'green',
     };
-    return <Tag color={colors[status]}>{status.replace('_', ' ').toUpperCase()}</Tag>;
+    return (
+      <Tag color={colors[status]}>{status.replace('_', ' ').toUpperCase()}</Tag>
+    );
   };
 
   return (
@@ -62,7 +73,7 @@ export default function EvaluationsPage() {
             <Statistic
               title='Pending'
               value={12}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
               suffix='reviews'
             />
           </Card>
@@ -72,7 +83,7 @@ export default function EvaluationsPage() {
             <Statistic
               title='In Review'
               value={3}
-              valueStyle={{ color: '#fa8c16' }}
+              styles={{ content: { color: '#fa8c16' } }}
               suffix='active'
             />
           </Card>
@@ -82,7 +93,7 @@ export default function EvaluationsPage() {
             <Statistic
               title='Completed'
               value={156}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
               suffix='done'
             />
           </Card>
@@ -102,11 +113,14 @@ export default function EvaluationsPage() {
           renderItem={(evaluation) => (
             <List.Item
               actions={[
-                <Link key='review' href={`/evaluations/${evaluation.id}`}>
-                  <Button type='primary' icon={<EyeOutlined />}>
-                    Review Now
-                  </Button>
-                </Link>,
+                <Button
+                  key='review'
+                  type='primary'
+                  icon={<EyeOutlined />}
+                  href={`/evaluations/${evaluation.id}`}
+                >
+                  Review Now
+                </Button>,
               ]}
             >
               <List.Item.Meta
