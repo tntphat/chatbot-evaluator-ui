@@ -16,8 +16,6 @@ import {
   Descriptions,
   message,
 } from 'antd';
-
-const { Title, Paragraph, Text: AntText } = Typography;
 import {
   ArrowLeftOutlined,
   DownloadOutlined,
@@ -30,6 +28,7 @@ import { CampaignStorage, ChatbotStorage } from '@/lib/storage';
 import type { Campaign, Chatbot } from '@/lib/types';
 import Link from 'next/link';
 
+const { Title, Paragraph, Text } = Typography;
 
 export default function CampaignDetailPage() {
   const params = useParams();
@@ -216,10 +215,10 @@ export default function CampaignDetailPage() {
                     {campaign.results.totalTests}
                   </Descriptions.Item>
                   <Descriptions.Item label='Passed'>
-                    <AntText type='success'>{campaign.results.passedTests}</AntText>
+                    <Text type='success'>{campaign.results.passedTests}</Text>
                   </Descriptions.Item>
                   <Descriptions.Item label='Failed'>
-                    <AntText type='danger'>{campaign.results.failedTests}</AntText>
+                    <Text type='danger'>{campaign.results.failedTests}</Text>
                   </Descriptions.Item>
                   <Descriptions.Item label='Error Rate'>
                     {campaign.results.errorRate}%
