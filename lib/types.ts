@@ -139,3 +139,4 @@ export interface ABVariantResults {
   responseTime: number;
   errorRate: number;
 }
+

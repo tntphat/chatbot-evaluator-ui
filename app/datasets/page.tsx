@@ -1,12 +1,29 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import {
+  Card,
+  Button,
+  Tag,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+  Space,
+  Popconfirm,
+  message,
+} from 'antd';
+import {
+  PlusOutlined,
+  EyeOutlined,
+  DeleteOutlined,
+  DatabaseOutlined,
+} from '@ant-design/icons';
 import { DatasetStorage } from '@/lib/storage';
 import type { TestDataset } from '@/lib/types';
 import Link from 'next/link';
+
+const { Title, Paragraph, Text } = Typography;
 
 export default function DatasetsPage() {
   const [datasets, setDatasets] = useState<TestDataset[]>([]);
@@ -16,114 +33,129 @@ export default function DatasetsPage() {
   }, []);
 
   const loadData = () => {
-    setDatasets(DatasetStorage.getAll());
+    setDatasets(DatasetStorage.getAll() as TestDataset[]);
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this dataset?')) {
-      DatasetStorage.delete(id);
-      loadData();
-    }
+    DatasetStorage.delete(id);
+    message.success('Dataset deleted successfully!');
+    loadData();
   };
 
   return (
-    <div className='space-y-6'>
-      <div className='flex justify-between items-center'>
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <h1 className='text-3xl font-bold text-gray-900'>Test Datasets</h1>
-          <p className='mt-2 text-gray-800'>
+          <Title level={2} style={{ margin: 0 }}>
+            Test Datasets
+          </Title>
+          <Paragraph style={{ margin: '8px 0 0 0', color: '#666' }}>
             Manage your evaluation test datasets
-          </p>
+          </Paragraph>
         </div>
         <Link href='/datasets/new'>
-          <Button>+ New Dataset</Button>
+          <Button type='primary' icon={<PlusOutlined />} size='large'>
+            New Dataset
+          </Button>
         </Link>
       </div>
 
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-        {datasets.length === 0 ? (
-          <Card className='col-span-full'>
-            <div className='text-center py-12'>
-              <p className='text-gray-700 text-lg'>No datasets found</p>
-              <p className='text-gray-800 mt-2'>
-                Create your first test dataset
-              </p>
-              <Link href='/datasets/new'>
-                <Button className='mt-4'>+ Create Dataset</Button>
-              </Link>
-            </div>
-          </Card>
-        ) : (
-          datasets.map((dataset) => (
-            <Card
-              key={dataset.id}
-              className='hover:shadow-lg transition-shadow'
-            >
-              <div className='space-y-4'>
-                <div className='flex items-start justify-between'>
-                  <div className='flex-1'>
-                    <h3 className='text-lg font-semibold text-gray-900 mb-1'>
+      {datasets.length === 0 ? (
+        <Card>
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <Paragraph style={{ fontSize: 16 }}>No datasets found</Paragraph>
+            <Paragraph style={{ color: '#999' }}>
+              Create your first test dataset
+            </Paragraph>
+            <Link href='/datasets/new'>
+              <Button type='primary' size='large' style={{ marginTop: 16 }}>
+                + Create Dataset
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      ) : (
+        <Row gutter={[16, 16]}>
+          {datasets.map((dataset) => (
+            <Col key={dataset.id} xs={24} sm={12} lg={8}>
+              <Card
+                hoverable
+                title={
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
                       {dataset.name}
-                    </h3>
-                    <Badge variant='info'>{dataset.type.toUpperCase()}</Badge>
+                    </div>
+                    <Tag color='blue'>{dataset.type.toUpperCase()}</Tag>
                   </div>
-                  <span className='text-2xl'>📚</span>
-                </div>
-
-                <p className='text-sm text-gray-800 line-clamp-2'>
-                  {dataset.description}
-                </p>
-
-                <div className='grid grid-cols-2 gap-4'>
-                  <div className='text-center p-3 bg-blue-50 rounded-lg'>
-                    <p className='text-2xl font-bold text-blue-600'>
-                      {dataset.itemCount}
-                    </p>
-                    <p className='text-xs text-gray-800 mt-1 font-medium'>
-                      Items
-                    </p>
-                  </div>
-                  <div className='text-center p-3 bg-purple-50 rounded-lg'>
-                    <p className='text-2xl font-bold text-purple-600'>
-                      {dataset.version}
-                    </p>
-                    <p className='text-xs text-gray-800 mt-1 font-medium'>
-                      Version
-                    </p>
-                  </div>
-                </div>
-
-                <div className='flex flex-wrap gap-1'>
-                  {dataset.tags.map((tag) => (
-                    <Badge key={tag} variant='neutral' size='sm'>
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-
-                <div className='text-sm text-gray-800 font-medium'>
-                  📅 Updated: {new Date(dataset.updatedAt).toLocaleDateString()}
-                </div>
-
-                <div className='flex gap-2 pt-2 border-t border-gray-200'>
-                  <Link href={`/datasets/${dataset.id}`} className='flex-1'>
-                    <Button size='sm' className='w-full'>
+                }
+                extra={<DatabaseOutlined style={{ fontSize: 24 }} />}
+                actions={[
+                  <Link key='view' href={`/datasets/${dataset.id}`}>
+                    <Button type='link' icon={<EyeOutlined />}>
                       View
                     </Button>
-                  </Link>
-                  <Button
-                    size='sm'
-                    variant='danger'
-                    onClick={() => handleDelete(dataset.id)}
+                  </Link>,
+                  <Popconfirm
+                    key='delete'
+                    title='Delete dataset?'
+                    description='Are you sure?'
+                    onConfirm={() => handleDelete(dataset.id)}
+                    okText='Yes'
+                    cancelText='No'
                   >
-                    Delete
-                  </Button>
+                    <Button type='link' danger icon={<DeleteOutlined />}>
+                      Delete
+                    </Button>
+                  </Popconfirm>,
+                ]}
+              >
+                <Paragraph ellipsis={{ rows: 2 }} style={{ minHeight: 48 }}>
+                  {dataset.description}
+                </Paragraph>
+
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                  <Col span={12}>
+                    <Statistic
+                      title='Items'
+                      value={dataset.itemCount}
+                      valueStyle={{ fontSize: 20, color: '#1890ff' }}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Statistic
+                      title='Version'
+                      value={dataset.version}
+                      valueStyle={{ fontSize: 20, color: '#722ed1' }}
+                    />
+                  </Col>
+                </Row>
+
+                <div style={{ marginTop: 12 }}>
+                  <Space wrap>
+                    {dataset.tags.map((tag) => (
+                      <Tag key={tag}>{tag}</Tag>
+                    ))}
+                  </Space>
                 </div>
-              </div>
-            </Card>
-          ))
-        )}
-      </div>
+
+                <Paragraph
+                  type='secondary'
+                  style={{ fontSize: 12, marginTop: 12, marginBottom: 0 }}
+                >
+                  📅 Updated: {new Date(dataset.updatedAt).toLocaleDateString()}
+                </Paragraph>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
     </div>
   );
 }

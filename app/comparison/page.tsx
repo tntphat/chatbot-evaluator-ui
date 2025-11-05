@@ -1,10 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import {
+  Card,
+  Button,
+  Select,
+  Typography,
+  Table,
+  Tag,
+  Alert,
+  Space,
+  Row,
+  Col,
+  message,
+} from 'antd';
+import { SwapOutlined, DownloadOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { ChatbotStorage } from '@/lib/storage';
 import type { Chatbot } from '@/lib/types';
+
+const { Title, Paragraph, Text } = Typography;
 
 export default function ComparisonPage() {
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
@@ -13,7 +27,7 @@ export default function ComparisonPage() {
   const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
-    setChatbots(ChatbotStorage.getAll());
+    setChatbots(ChatbotStorage.getAll() as Chatbot[]);
   }, []);
 
   const handleCompare = () => {
@@ -22,225 +36,157 @@ export default function ComparisonPage() {
     }
   };
 
-  const comparisonData = {
-    metrics: [
-      {
-        name: 'Overall Score',
-        a: '4.2 (85%)',
-        b: '4.5 (90%)',
-        winner: 'B',
-        change: '+5%',
-      },
-      { name: 'Accuracy', a: '85%', b: '90%', winner: 'B', change: '+5%' },
-      {
-        name: 'Task Completion',
-        a: '92%',
-        b: '95%',
-        winner: 'B',
-        change: '+3%',
-      },
-      {
-        name: 'Response Time',
-        a: '450ms',
-        b: '380ms',
-        winner: 'B',
-        change: '-70ms',
-      },
-      {
-        name: 'Error Rate',
-        a: '2.5%',
-        b: '1.2%',
-        winner: 'B',
-        change: '-1.3%',
-      },
-      {
-        name: 'User Satisfaction',
-        a: '4.1/5',
-        b: '4.6/5',
-        winner: 'B',
-        change: '+0.5',
-      },
-    ],
-  };
+  const comparisonData = [
+    { metric: 'Overall Score', a: '4.2 (85%)', b: '4.5 (90%)', change: '+5%', winner: 'B' },
+    { metric: 'Accuracy', a: '85%', b: '90%', change: '+5%', winner: 'B' },
+    { metric: 'Task Completion', a: '92%', b: '95%', change: '+3%', winner: 'B' },
+    { metric: 'Response Time', a: '450ms', b: '380ms', change: '-70ms', winner: 'B' },
+    { metric: 'Error Rate', a: '2.5%', b: '1.2%', change: '-1.3%', winner: 'B' },
+    { metric: 'User Satisfaction', a: '4.1/5', b: '4.6/5', change: '+0.5', winner: 'B' },
+  ];
+
+  const columns = [
+    {
+      title: 'Metric',
+      dataIndex: 'metric',
+      key: 'metric',
+      render: (text: string) => <Text strong>{text}</Text>,
+    },
+    { title: 'Variant A', dataIndex: 'a', key: 'a' },
+    {
+      title: 'Variant B',
+      dataIndex: 'b',
+      key: 'b',
+      render: (text: string) => <Text strong>{text}</Text>,
+    },
+    {
+      title: 'Change',
+      dataIndex: 'change',
+      key: 'change',
+      render: (text: string, record: any) => (
+        <Tag color={record.winner === 'B' ? 'green' : 'default'}>{text}</Tag>
+      ),
+    },
+  ];
 
   return (
-    <div className='space-y-6'>
-      <div>
-        <h1 className='text-3xl font-bold text-gray-900'>Chatbot Comparison</h1>
-        <p className='mt-2 text-gray-800'>
-          Compare performance between chatbot versions
-        </p>
-      </div>
+    <div>
+      <Title level={2}>Chatbot Comparison</Title>
+      <Paragraph style={{ color: '#666', marginBottom: 24 }}>
+        Compare performance between chatbot versions
+      </Paragraph>
 
-      <Card title='Select Chatbots to Compare'>
-        <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-          <div>
-            <label className='block text-sm font-medium text-gray-700 mb-2'>
-              Variant A (Control)
-            </label>
-            <select
-              className='w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600'
-              value={selectedA}
-              onChange={(e) => setSelectedA(e.target.value)}
+      <Card title='Select Chatbots to Compare' style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
+          <Col xs={24} md={12}>
+            <div style={{ marginBottom: 8 }}>
+              <Text strong>Variant A (Control)</Text>
+            </div>
+            <Select
+              placeholder='Select chatbot...'
+              size='large'
+              style={{ width: '100%' }}
+              value={selectedA || undefined}
+              onChange={setSelectedA}
             >
-              <option value=''>Select chatbot...</option>
               {chatbots.map((cb) => (
-                <option key={cb.id} value={cb.id}>
+                <Select.Option key={cb.id} value={cb.id}>
                   {cb.name} {cb.version}
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </div>
-          <div>
-            <label className='block text-sm font-medium text-gray-700 mb-2'>
-              Variant B (Treatment)
-            </label>
-            <select
-              className='w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600'
-              value={selectedB}
-              onChange={(e) => setSelectedB(e.target.value)}
+            </Select>
+          </Col>
+          <Col xs={24} md={12}>
+            <div style={{ marginBottom: 8 }}>
+              <Text strong>Variant B (Treatment)</Text>
+            </div>
+            <Select
+              placeholder='Select chatbot...'
+              size='large'
+              style={{ width: '100%' }}
+              value={selectedB || undefined}
+              onChange={setSelectedB}
             >
-              <option value=''>Select chatbot...</option>
               {chatbots.map((cb) => (
-                <option
+                <Select.Option
                   key={cb.id}
                   value={cb.id}
                   disabled={cb.id === selectedA}
                 >
                   {cb.name} {cb.version}
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </div>
-        </div>
-        <div className='mt-6 flex gap-4'>
-          <Button onClick={handleCompare} disabled={!selectedA || !selectedB}>
+            </Select>
+          </Col>
+        </Row>
+        <Space style={{ marginTop: 16 }}>
+          <Button
+            type='primary'
+            icon={<SwapOutlined />}
+            size='large'
+            onClick={handleCompare}
+            disabled={!selectedA || !selectedB}
+          >
             Compare
           </Button>
           <Button
-            variant='secondary'
-            onClick={() =>
-              alert(
-                '🧪 Run A/B Test\n\nThis will create a live A/B test with real users:\n• Split traffic between variants\n• Track real-time metrics\n• Statistical significance testing\n• Automatic winner detection\n\n(Feature coming in Phase 2)'
-              )
-            }
+            icon={<ExperimentOutlined />}
+            size='large'
+            onClick={() => message.info('Feature coming in Phase 2: A/B Testing')}
           >
             Run A/B Test
           </Button>
-        </div>
+        </Space>
       </Card>
 
       {showComparison && (
         <>
-          <Card title='Comparison Results'>
-            <div className='overflow-x-auto'>
-              <table className='w-full'>
-                <thead>
-                  <tr className='border-b border-gray-200'>
-                    <th className='text-left py-3 px-4 font-semibold text-gray-700'>
-                      Metric
-                    </th>
-                    <th className='text-center py-3 px-4 font-semibold text-gray-700'>
-                      Variant A
-                    </th>
-                    <th className='text-center py-3 px-4 font-semibold text-gray-700'>
-                      Variant B
-                    </th>
-                    <th className='text-center py-3 px-4 font-semibold text-gray-700'>
-                      Change
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparisonData.metrics.map((metric, idx) => (
-                    <tr
-                      key={idx}
-                      className='border-b border-gray-100 hover:bg-gray-50'
-                    >
-                      <td className='py-3 px-4 font-medium text-gray-900'>
-                        {metric.name}
-                      </td>
-                      <td className='py-3 px-4 text-center text-gray-700'>
-                        {metric.a}
-                      </td>
-                      <td className='py-3 px-4 text-center text-gray-700 font-semibold'>
-                        {metric.b}
-                      </td>
-                      <td className='py-3 px-4 text-center'>
-                        <span
-                          className={`px-2 py-1 rounded text-sm font-medium ${
-                            metric.winner === 'B'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {metric.change}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className='mt-6 p-4 bg-green-50 border border-green-200 rounded-lg'>
-              <div className='flex items-center gap-2'>
-                <span className='text-2xl'>🏆</span>
-                <div>
-                  <p className='font-semibold text-green-900'>
-                    Winner: Variant B
-                  </p>
-                  <p className='text-sm text-green-700'>
-                    Better in 6/6 metrics
-                  </p>
-                </div>
-              </div>
-            </div>
+          <Card title='Comparison Results' style={{ marginBottom: 16 }}>
+            <Table
+              columns={columns}
+              dataSource={comparisonData}
+              pagination={false}
+              rowKey='metric'
+            />
+            <Alert
+              message='Winner: Variant B'
+              description='Better in 6/6 metrics'
+              type='success'
+              showIcon
+              style={{ marginTop: 16 }}
+            />
           </Card>
 
           <Card title='Recommendations'>
-            <div className='space-y-3'>
-              <div className='flex gap-3'>
-                <span className='text-green-600 font-bold'>✓</span>
-                <div>
-                  <p className='font-medium text-gray-900'>Deploy Variant B</p>
-                  <p className='text-sm text-gray-800'>
-                    Shows significant improvement across all metrics
-                  </p>
-                </div>
-              </div>
-              <div className='flex gap-3'>
-                <span className='text-blue-600 font-bold'>ℹ</span>
-                <div>
-                  <p className='font-medium text-gray-900'>
-                    Suggested Rollout Strategy
-                  </p>
-                  <p className='text-sm text-gray-800'>
-                    Week 1: 25% → Week 2: 50% → Week 3: 100%
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className='mt-4 flex gap-3'>
+            <Space direction='vertical' style={{ width: '100%' }}>
+              <Alert
+                message='Deploy Variant B'
+                description='Shows significant improvement across all metrics'
+                type='success'
+                showIcon
+              />
+              <Alert
+                message='Suggested Rollout Strategy'
+                description='Week 1: 25% → Week 2: 50% → Week 3: 100%'
+                type='info'
+                showIcon
+              />
+            </Space>
+            <Space style={{ marginTop: 16 }}>
               <Button
-                onClick={() =>
-                  alert(
-                    '📥 Download Report\n\nThis will export a detailed comparison report (PDF format).\n\n(Feature coming in Phase 2)'
-                  )
-                }
+                type='primary'
+                icon={<DownloadOutlined />}
+                onClick={() => message.info('Feature coming: Download report')}
               >
                 Download Report
               </Button>
               <Button
-                variant='secondary'
-                onClick={() =>
-                  alert(
-                    '📊 Export Data\n\nThis will export comparison data as CSV for further analysis.\n\n(Feature coming in Phase 2)'
-                  )
-                }
+                icon={<DownloadOutlined />}
+                onClick={() => message.info('Feature coming: Export data')}
               >
                 Export Data
               </Button>
-            </div>
+            </Space>
           </Card>
         </>
       )}

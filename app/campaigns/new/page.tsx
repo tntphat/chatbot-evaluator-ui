@@ -2,276 +2,178 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import {
+  Card,
+  Form,
+  Input,
+  Button,
+  Checkbox,
+  Select,
+  Typography,
+  Space,
+  message,
+  Row,
+  Col,
+} from 'antd';
+import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import { CampaignStorage, ChatbotStorage, DatasetStorage } from '@/lib/storage';
 import type { Chatbot, TestDataset } from '@/lib/types';
 import Link from 'next/link';
 
+const { Title, Paragraph } = Typography;
+const { TextArea } = Input;
+
 export default function NewCampaignPage() {
   const router = useRouter();
+  const [form] = Form.useForm();
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [datasets, setDatasets] = useState<TestDataset[]>([]);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    chatbotIds: [] as string[],
-    evaluationType: [] as ('automated' | 'human')[],
-    datasetId: '',
-    metrics: [] as string[],
-  });
-
   useEffect(() => {
-    setChatbots(ChatbotStorage.getAll());
-    setDatasets(DatasetStorage.getAll());
+    setChatbots(ChatbotStorage.getAll() as Chatbot[]);
+    setDatasets(DatasetStorage.getAll() as TestDataset[]);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.name || formData.chatbotIds.length === 0) {
-      alert('Please fill in required fields!');
-      return;
-    }
-
+  const onFinish = (values: any) => {
     const newCampaign = {
       id: `camp_${Date.now()}`,
-      name: formData.name,
-      description: formData.description,
-      chatbotIds: formData.chatbotIds,
-      evaluationType:
-        formData.evaluationType.length > 0
-          ? formData.evaluationType
-          : ['automated'],
-      datasetId: formData.datasetId,
+      name: values.name,
+      description: values.description || '',
+      chatbotIds: values.chatbotIds || [],
+      evaluationType: values.evaluationType || ['automated'],
+      datasetId: values.datasetId,
       status: 'draft' as const,
-      metrics:
-        formData.metrics.length > 0
-          ? formData.metrics
-          : ['accuracy', 'quality'],
+      metrics: values.metrics || ['accuracy', 'quality'],
       createdAt: new Date().toISOString(),
       progress: 0,
     };
 
     CampaignStorage.add(newCampaign);
-    alert('Campaign created successfully!');
+    message.success('Campaign created successfully!');
     router.push('/campaigns');
   };
 
-  const toggleChatbot = (id: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      chatbotIds: prev.chatbotIds.includes(id)
-        ? prev.chatbotIds.filter((cid) => cid !== id)
-        : [...prev.chatbotIds, id],
-    }));
-  };
-
-  const toggleEvaluationType = (type: 'automated' | 'human') => {
-    setFormData((prev) => ({
-      ...prev,
-      evaluationType: prev.evaluationType.includes(type)
-        ? prev.evaluationType.filter((t) => t !== type)
-        : [...prev.evaluationType, type],
-    }));
-  };
-
-  const toggleMetric = (metric: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      metrics: prev.metrics.includes(metric)
-        ? prev.metrics.filter((m) => m !== metric)
-        : [...prev.metrics, metric],
-    }));
-  };
-
-  const availableMetrics = [
-    'accuracy',
-    'quality',
-    'taskCompletion',
-    'responseTime',
-    'errorRate',
-    'toxicity',
-    'hallucination',
-  ];
-
   return (
-    <div className='space-y-6 max-w-4xl mx-auto'>
-      <div className='flex items-center gap-4'>
+    <div>
+      <Space style={{ marginBottom: 24 }}>
         <Link href='/campaigns'>
-          <Button variant='ghost' size='sm'>
-            ← Back
-          </Button>
+          <Button icon={<ArrowLeftOutlined />}>Back</Button>
         </Link>
-        <div>
-          <h1 className='text-3xl font-bold text-gray-900'>
-            Create Evaluation Campaign
-          </h1>
-          <p className='mt-2 text-gray-800'>
-            Set up a new evaluation campaign for your chatbot
-          </p>
-        </div>
-      </div>
+      </Space>
 
-      <form onSubmit={handleSubmit} className='space-y-6'>
-        {/* Basic Info */}
-        <Card title='Basic Information'>
-          <div className='space-y-4'>
-            <div>
-              <label className='block text-sm font-medium text-gray-700 mb-2'>
-                Campaign Name *
-              </label>
-              <input
-                type='text'
-                className='w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600'
-                placeholder='e.g., Q4 2024 Product Launch Evaluation'
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                required
-              />
-            </div>
+      <Title level={2}>Create Evaluation Campaign</Title>
+      <Paragraph style={{ color: '#666', marginBottom: 24 }}>
+        Set up a new evaluation campaign for your chatbot
+      </Paragraph>
 
-            <div>
-              <label className='block text-sm font-medium text-gray-700 mb-2'>
-                Description
-              </label>
-              <textarea
-                className='w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600'
-                rows={3}
-                placeholder='Brief description of this evaluation campaign...'
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-              />
-            </div>
-          </div>
+      <Form form={form} layout='vertical' onFinish={onFinish}>
+        <Card title='Basic Information' style={{ marginBottom: 16 }}>
+          <Form.Item
+            label='Campaign Name'
+            name='name'
+            rules={[{ required: true, message: 'Please enter campaign name!' }]}
+          >
+            <Input placeholder='e.g., Q4 2024 Product Launch Evaluation' size='large' />
+          </Form.Item>
+
+          <Form.Item label='Description' name='description'>
+            <TextArea
+              rows={3}
+              placeholder='Brief description of this evaluation campaign...'
+            />
+          </Form.Item>
         </Card>
 
-        {/* Select Chatbots */}
-        <Card
-          title='Select Chatbot(s)'
-          subtitle='Choose one or more chatbots to evaluate'
-        >
-          <div className='space-y-3'>
-            {chatbots.length === 0 ? (
-              <p className='text-gray-700'>No chatbots available</p>
-            ) : (
-              chatbots.map((chatbot) => (
-                <label
-                  key={chatbot.id}
-                  className='flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer'
-                >
-                  <input
-                    type='checkbox'
-                    className='w-5 h-5'
-                    checked={formData.chatbotIds.includes(chatbot.id)}
-                    onChange={() => toggleChatbot(chatbot.id)}
-                  />
-                  <div className='flex-1'>
-                    <p className='font-medium text-gray-900'>
-                      {chatbot.name} {chatbot.version}
-                    </p>
-                    <p className='text-sm text-gray-800'>
-                      {chatbot.description}
-                    </p>
+        <Card title='Select Chatbot(s)' style={{ marginBottom: 16 }}>
+          <Form.Item name='chatbotIds'>
+            <Checkbox.Group style={{ width: '100%' }}>
+              <Space direction='vertical' style={{ width: '100%' }}>
+                {chatbots.map((chatbot) => (
+                  <Card key={chatbot.id} size='small' hoverable>
+                    <Checkbox value={chatbot.id}>
+                      <strong>
+                        {chatbot.name} {chatbot.version}
+                      </strong>
+                      <div style={{ color: '#666', fontSize: 12 }}>
+                        {chatbot.description}
+                      </div>
+                    </Checkbox>
+                  </Card>
+                ))}
+              </Space>
+            </Checkbox.Group>
+          </Form.Item>
+        </Card>
+
+        <Card title='Evaluation Type' style={{ marginBottom: 16 }}>
+          <Form.Item name='evaluationType'>
+            <Checkbox.Group>
+              <Space direction='vertical'>
+                <Checkbox value='automated'>
+                  <strong>Automated Testing</strong>
+                  <div style={{ color: '#666', fontSize: 12 }}>
+                    Run automated metrics calculation
                   </div>
-                </label>
-              ))
-            )}
-          </div>
+                </Checkbox>
+                <Checkbox value='human'>
+                  <strong>Human Evaluation</strong>
+                  <div style={{ color: '#666', fontSize: 12 }}>
+                    Manual review by human evaluators
+                  </div>
+                </Checkbox>
+              </Space>
+            </Checkbox.Group>
+          </Form.Item>
         </Card>
 
-        {/* Evaluation Type */}
-        <Card title='Evaluation Type'>
-          <div className='space-y-3'>
-            <label className='flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer'>
-              <input
-                type='checkbox'
-                className='w-5 h-5'
-                checked={formData.evaluationType.includes('automated')}
-                onChange={() => toggleEvaluationType('automated')}
-              />
-              <div>
-                <p className='font-medium text-gray-900'>Automated Testing</p>
-                <p className='text-sm text-gray-800'>
-                  Run automated metrics calculation
-                </p>
-              </div>
-            </label>
-
-            <label className='flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer'>
-              <input
-                type='checkbox'
-                className='w-5 h-5'
-                checked={formData.evaluationType.includes('human')}
-                onChange={() => toggleEvaluationType('human')}
-              />
-              <div>
-                <p className='font-medium text-gray-900'>Human Evaluation</p>
-                <p className='text-sm text-gray-800'>
-                  Manual review by human evaluators
-                </p>
-              </div>
-            </label>
-          </div>
-        </Card>
-
-        {/* Test Dataset */}
-        <Card title='Test Dataset' subtitle='Select a dataset for testing'>
-          <div>
-            <select
-              className='w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder:text-gray-600'
-              value={formData.datasetId}
-              onChange={(e) =>
-                setFormData({ ...formData, datasetId: e.target.value })
-              }
+        <Card title='Test Dataset' style={{ marginBottom: 16 }}>
+          <Form.Item name='datasetId' label='Select Dataset'>
+            <Select
+              placeholder='Select a dataset (optional)'
+              size='large'
+              allowClear
             >
-              <option value=''>Select dataset (optional)</option>
               {datasets.map((dataset) => (
-                <option key={dataset.id} value={dataset.id}>
+                <Select.Option key={dataset.id} value={dataset.id}>
                   {dataset.name} ({dataset.itemCount} items)
-                </option>
+                </Select.Option>
               ))}
-            </select>
-          </div>
+            </Select>
+          </Form.Item>
         </Card>
 
-        {/* Metrics */}
-        <Card title='Metrics to Measure'>
-          <div className='grid grid-cols-2 md:grid-cols-3 gap-3'>
-            {availableMetrics.map((metric) => (
-              <label
-                key={metric}
-                className='flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer'
-              >
-                <input
-                  type='checkbox'
-                  className='w-4 h-4'
-                  checked={formData.metrics.includes(metric)}
-                  onChange={() => toggleMetric(metric)}
-                />
-                <span className='text-sm font-medium text-gray-900 capitalize'>
-                  {metric}
-                </span>
-              </label>
-            ))}
-          </div>
+        <Card title='Metrics to Measure' style={{ marginBottom: 24 }}>
+          <Form.Item name='metrics'>
+            <Checkbox.Group>
+              <Row>
+                {[
+                  'accuracy',
+                  'quality',
+                  'taskCompletion',
+                  'responseTime',
+                  'errorRate',
+                  'toxicity',
+                ].map((metric) => (
+                  <Col span={8} key={metric}>
+                    <Checkbox value={metric} style={{ marginBottom: 8 }}>
+                      {metric.charAt(0).toUpperCase() + metric.slice(1)}
+                    </Checkbox>
+                  </Col>
+                ))}
+              </Row>
+            </Checkbox.Group>
+          </Form.Item>
         </Card>
 
-        {/* Actions */}
-        <div className='flex gap-3 justify-end'>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'flex-end' }}>
           <Link href='/campaigns'>
-            <Button type='button' variant='ghost'>
-              Cancel
-            </Button>
+            <Button>Cancel</Button>
           </Link>
-          <Button type='submit'>Create Campaign</Button>
+          <Button type='primary' htmlType='submit' icon={<SaveOutlined />} size='large'>
+            Create Campaign
+          </Button>
         </div>
-      </form>
+      </Form>
     </div>
   );
 }

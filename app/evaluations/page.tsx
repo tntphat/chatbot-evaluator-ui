@@ -1,9 +1,10 @@
 'use client';
 
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { Card, Button, Tag, Typography, Row, Col, Statistic, Space, List } from 'antd';
+import { StarOutlined, FilterOutlined, EyeOutlined } from '@ant-design/icons';
 import Link from 'next/link';
+
+const { Title, Paragraph, Text } = Typography;
 
 export default function EvaluationsPage() {
   const mockEvaluations = [
@@ -30,108 +31,102 @@ export default function EvaluationsPage() {
     },
   ];
 
-  const getPriorityBadge = (priority: string) => {
-    const variants: Record<string, 'error' | 'warning' | 'neutral'> = {
-      high: 'error',
-      medium: 'warning',
-      low: 'neutral',
+  const getPriorityTag = (priority: string) => {
+    const colors: Record<string, string> = {
+      high: 'red',
+      medium: 'orange',
+      low: 'default',
     };
-    return <Badge variant={variants[priority]}>{priority.toUpperCase()}</Badge>;
+    return <Tag color={colors[priority]}>{priority.toUpperCase()}</Tag>;
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'info' | 'warning' | 'success'> = {
-      pending: 'info',
-      in_review: 'warning',
-      completed: 'success',
+  const getStatusTag = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'blue',
+      in_review: 'orange',
+      completed: 'green',
     };
-    return (
-      <Badge variant={variants[status]}>
-        {status.replace('_', ' ').toUpperCase()}
-      </Badge>
-    );
+    return <Tag color={colors[status]}>{status.replace('_', ' ').toUpperCase()}</Tag>;
   };
 
   return (
-    <div className='space-y-6'>
-      <div>
-        <h1 className='text-3xl font-bold text-gray-900'>
-          Human Evaluation Portal
-        </h1>
-        <p className='mt-2 text-gray-800'>
-          Review and rate chatbot conversations
-        </p>
-      </div>
+    <div>
+      <Title level={2}>Human Evaluation Portal</Title>
+      <Paragraph style={{ color: '#666', marginBottom: 24 }}>
+        Review and rate chatbot conversations
+      </Paragraph>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title='Pending'
+              value={12}
+              valueStyle={{ color: '#1890ff' }}
+              suffix='reviews'
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title='In Review'
+              value={3}
+              valueStyle={{ color: '#fa8c16' }}
+              suffix='active'
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title='Completed'
+              value={156}
+              valueStyle={{ color: '#52c41a' }}
+              suffix='done'
+            />
+          </Card>
+        </Col>
+      </Row>
 
       <Card
         title='Evaluation Queue'
-        subtitle='Conversations awaiting review'
-        action={
-          <Button
-            size='sm'
-            variant='secondary'
-            onClick={() =>
-              alert(
-                '🔍 Filter Evaluations\n\nThis will let you filter by:\n• Status (pending, in review, completed)\n• Priority (high, medium, low)\n• Chatbot\n• Date range\n\n(Feature coming in Phase 2)'
-              )
-            }
-          >
+        extra={
+          <Button icon={<FilterOutlined />} onClick={() => {}}>
             Filter
           </Button>
         }
       >
-        <div className='space-y-3'>
-          {mockEvaluations.map((evaluation) => (
-            <div
-              key={evaluation.id}
-              className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors'
+        <List
+          dataSource={mockEvaluations}
+          renderItem={(evaluation) => (
+            <List.Item
+              actions={[
+                <Link key='review' href={`/evaluations/${evaluation.id}`}>
+                  <Button type='primary' icon={<EyeOutlined />}>
+                    Review Now
+                  </Button>
+                </Link>,
+              ]}
             >
-              <div className='flex items-center justify-between'>
-                <div className='flex-1'>
-                  <div className='flex items-center gap-3 mb-2'>
-                    {getPriorityBadge(evaluation.priority)}
-                    <span className='text-sm text-gray-800'>
-                      {evaluation.chatbot}
-                    </span>
-                  </div>
-                  <h4 className='font-semibold text-gray-900'>
-                    {evaluation.conversation}
-                  </h4>
-                  <div className='mt-2'>
-                    {getStatusBadge(evaluation.status)}
-                  </div>
-                </div>
-                <Link href={`/evaluations/${evaluation.id}`}>
-                  <Button size='sm'>Review Now →</Button>
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
+              <List.Item.Meta
+                title={
+                  <Space>
+                    {getPriorityTag(evaluation.priority)}
+                    <Text strong>{evaluation.conversation}</Text>
+                  </Space>
+                }
+                description={
+                  <Space>
+                    <Text type='secondary'>{evaluation.chatbot}</Text>
+                    {getStatusTag(evaluation.status)}
+                  </Space>
+                }
+              />
+            </List.Item>
+          )}
+        />
       </Card>
-
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-        <Card title='Pending'>
-          <div className='text-center'>
-            <div className='text-4xl font-bold text-blue-600'>12</div>
-            <div className='text-sm text-gray-800 mt-2'>Awaiting review</div>
-          </div>
-        </Card>
-        <Card title='In Review'>
-          <div className='text-center'>
-            <div className='text-4xl font-bold text-yellow-600'>3</div>
-            <div className='text-sm text-gray-800 mt-2'>
-              Currently reviewing
-            </div>
-          </div>
-        </Card>
-        <Card title='Completed'>
-          <div className='text-center'>
-            <div className='text-4xl font-bold text-green-600'>156</div>
-            <div className='text-sm text-gray-800 mt-2'>Reviews completed</div>
-          </div>
-        </Card>
-      </div>
     </div>
   );
 }

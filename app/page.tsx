@@ -1,17 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MetricCard, Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { Card, Row, Col, Statistic, Table, Tag, Button, Typography, Space } from 'antd';
+import {
+  RocketOutlined,
+  PlayCircleOutlined,
+  StarOutlined,
+  CheckCircleOutlined,
+  DatabaseOutlined,
+  RobotOutlined,
+} from '@ant-design/icons';
 import {
   CampaignStorage,
   ChatbotStorage,
   DatasetStorage,
   initializeMockData,
 } from '@/lib/storage';
-import Link from 'next/link';
 import type { Campaign } from '@/lib/types';
+import Link from 'next/link';
+
+const { Title, Paragraph } = Typography;
 
 export default function Dashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -25,29 +33,25 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    // Initialize mock data on first load
     initializeMockData();
 
-    // Load data
-    const campaignsData = CampaignStorage.getAll();
+    const campaignsData = CampaignStorage.getAll() as Campaign[];
     const chatbotsData = ChatbotStorage.getAll();
     const datasetsData = DatasetStorage.getAll();
 
     setCampaigns(campaignsData);
 
-    // Calculate stats
     const activeCampaigns = campaignsData.filter(
-      (c: Campaign) => c.status === 'running'
+      (c) => c.status === 'running'
     ).length;
     const completedCampaigns = campaignsData.filter(
-      (c: Campaign) => c.status === 'completed'
+      (c) => c.status === 'completed'
     );
 
     const avgQuality =
       completedCampaigns.length > 0
         ? completedCampaigns.reduce(
-            (sum: number, c: Campaign) =>
-              sum + (c.results?.avgQualityScore || 0),
+            (sum, c) => sum + (c.results?.avgQualityScore || 0),
             0
           ) / completedCampaigns.length
         : 0;
@@ -55,7 +59,7 @@ export default function Dashboard() {
     const avgPassRate =
       completedCampaigns.length > 0
         ? completedCampaigns.reduce(
-            (sum: number, c: Campaign) => sum + (c.results?.passRate || 0),
+            (sum, c) => sum + (c.results?.passRate || 0),
             0
           ) / completedCampaigns.length
         : 0;
@@ -70,176 +74,224 @@ export default function Dashboard() {
     });
   }, []);
 
-  const getStatusBadge = (status: Campaign['status']) => {
-    const variants: Record<
-      Campaign['status'],
-      'success' | 'warning' | 'error' | 'info' | 'neutral'
-    > = {
-      draft: 'neutral',
-      running: 'info',
+  const getStatusTag = (status: Campaign['status']) => {
+    const colors: Record<Campaign['status'], string> = {
+      draft: 'default',
+      running: 'processing',
       paused: 'warning',
       completed: 'success',
       failed: 'error',
     };
-    return <Badge variant={variants[status]}>{status.toUpperCase()}</Badge>;
+    return <Tag color={colors[status]}>{status.toUpperCase()}</Tag>;
   };
 
-  return (
-    <div className='space-y-8'>
-      {/* Header */}
-      <div className='flex justify-between items-center'>
-        <div>
-          <h1 className='text-3xl font-bold text-gray-900'>Dashboard</h1>
-          <p className='mt-2 text-gray-800'>
-            Overview of your chatbot evaluation metrics
-          </p>
-        </div>
-        <Link href='/campaigns/new'>
-          <Button>+ New Campaign</Button>
+  const columns = [
+    {
+      title: 'Campaign Name',
+      dataIndex: 'name',
+      key: 'name',
+      render: (text: string, record: Campaign) => (
+        <Link href={`/campaigns/${record.id}`}>
+          <a style={{ fontWeight: 600 }}>{text}</a>
         </Link>
+      ),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: Campaign['status']) => getStatusTag(status),
+    },
+    {
+      title: 'Progress',
+      dataIndex: 'progress',
+      key: 'progress',
+      render: (progress: number) => `${progress || 0}%`,
+    },
+    {
+      title: 'Created',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (date: string) => new Date(date).toLocaleDateString(),
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      render: (_: any, record: Campaign) => (
+        <Link href={`/campaigns/${record.id}`}>
+          <Button type='link' size='small'>
+            View Details →
+          </Button>
+        </Link>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2} style={{ margin: 0 }}>
+          Dashboard
+        </Title>
+        <Paragraph style={{ margin: '8px 0 0 0', color: '#666' }}>
+          Overview of your chatbot evaluation metrics
+        </Paragraph>
       </div>
 
-      {/* Metrics Grid */}
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
-        <MetricCard
-          title='Total Campaigns'
-          value={stats.totalCampaigns}
-          icon='🎯'
-        />
-        <MetricCard
-          title='Active Campaigns'
-          value={stats.activeCampaigns}
-          change={stats.activeCampaigns > 0 ? 'Running' : 'None'}
-          changeType={stats.activeCampaigns > 0 ? 'positive' : 'neutral'}
-          icon='▶️'
-        />
-        <MetricCard
-          title='Average Quality'
-          value={`${stats.avgQuality}/5`}
-          change={
-            stats.avgQuality >= 4
-              ? 'Excellent'
-              : stats.avgQuality >= 3
-              ? 'Good'
-              : 'Needs Improvement'
-          }
-          changeType={
-            stats.avgQuality >= 4
-              ? 'positive'
-              : stats.avgQuality >= 3
-              ? 'neutral'
-              : 'negative'
-          }
-          icon='⭐'
-        />
-        <MetricCard
-          title='Pass Rate'
-          value={`${stats.avgPassRate}%`}
-          change={stats.avgPassRate >= 85 ? '+Target' : 'Below Target'}
-          changeType={stats.avgPassRate >= 85 ? 'positive' : 'negative'}
-          icon='✅'
-        />
-      </div>
+      {/* Metrics Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title='Total Campaigns'
+              value={stats.totalCampaigns}
+              prefix={<RocketOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title='Active Campaigns'
+              value={stats.activeCampaigns}
+              prefix={<PlayCircleOutlined />}
+              valueStyle={{ color: stats.activeCampaigns > 0 ? '#3f8600' : '#666' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title='Average Quality'
+              value={stats.avgQuality}
+              suffix='/ 5'
+              prefix={<StarOutlined />}
+              valueStyle={{
+                color: stats.avgQuality >= 4 ? '#3f8600' : stats.avgQuality >= 3 ? '#fa8c16' : '#cf1322',
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title='Pass Rate'
+              value={stats.avgPassRate}
+              suffix='%'
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: stats.avgPassRate >= 85 ? '#3f8600' : '#cf1322' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Secondary Metrics */}
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-        <MetricCard
-          title='Total Chatbots'
-          value={stats.totalChatbots}
-          icon='🤖'
-        />
-        <MetricCard
-          title='Test Datasets'
-          value={stats.totalDatasets}
-          icon='📚'
-        />
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12}>
+          <Card>
+            <Statistic
+              title='Total Chatbots'
+              value={stats.totalChatbots}
+              prefix={<RobotOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Card>
+            <Statistic
+              title='Test Datasets'
+              value={stats.totalDatasets}
+              prefix={<DatabaseOutlined />}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Recent Campaigns */}
-      <Card title='Recent Campaigns' subtitle='Latest evaluation campaigns'>
-        <div className='space-y-4'>
-          {campaigns.length === 0 ? (
-            <div className='text-center py-12'>
-              <p className='text-gray-700 text-lg'>No campaigns yet</p>
-              <p className='text-gray-600 mt-2'>
-                Create your first evaluation campaign to get started
-              </p>
-              <Link href='/campaigns/new'>
-                <Button className='mt-4'>Create Campaign</Button>
-              </Link>
-            </div>
-          ) : (
-            campaigns.slice(0, 5).map((campaign) => (
-              <div
-                key={campaign.id}
-                className='flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors'
-              >
-                <div className='flex-1'>
-                  <div className='flex items-center gap-3'>
-                    <h4 className='font-semibold text-gray-900'>
-                      {campaign.name}
-                    </h4>
-                    {getStatusBadge(campaign.status)}
-                  </div>
-                  <p className='text-sm text-gray-800 mt-1'>
-                    {campaign.description}
-                  </p>
-                  <div className='flex items-center gap-4 mt-2 text-sm text-gray-700'>
-                    <span>📊 {campaign.chatbotIds.length} chatbot(s)</span>
-                    <span>
-                      📅 {new Date(campaign.createdAt).toLocaleDateString()}
-                    </span>
-                    {campaign.progress !== undefined && (
-                      <span>⏳ {campaign.progress}% complete</span>
-                    )}
-                  </div>
-                </div>
-                <Link href={`/campaigns/${campaign.id}`}>
-                  <Button variant='ghost' size='sm'>
-                    View →
-                  </Button>
-                </Link>
-              </div>
-            ))
-          )}
-        </div>
-        {campaigns.length > 5 && (
-          <div className='mt-4 text-center'>
-            <Link href='/campaigns'>
-              <Button variant='ghost'>View All Campaigns →</Button>
+      <Card
+        title='Recent Campaigns'
+        extra={
+          <Link href='/campaigns/new'>
+            <Button type='primary'>+ New Campaign</Button>
+          </Link>
+        }
+      >
+        {campaigns.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <Paragraph style={{ fontSize: 16, color: '#666' }}>
+              No campaigns yet
+            </Paragraph>
+            <Paragraph style={{ color: '#999' }}>
+              Create your first evaluation campaign to get started
+            </Paragraph>
+            <Link href='/campaigns/new'>
+              <Button type='primary' size='large' style={{ marginTop: 16 }}>
+                Create Campaign
+              </Button>
             </Link>
           </div>
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={campaigns.map((c) => ({ ...c, key: c.id }))}
+            pagination={{ pageSize: 5 }}
+          />
         )}
       </Card>
 
       {/* Quick Actions */}
-      <Card title='Quick Actions'>
-        <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-          <Link
-            href='/campaigns/new'
-            className='p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-center'
-          >
-            <div className='text-3xl mb-2'>🎯</div>
-            <div className='font-semibold text-gray-900'>New Campaign</div>
-            <div className='text-sm text-gray-600 mt-1'>Start evaluation</div>
-          </Link>
-          <Link
-            href='/datasets'
-            className='p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-center'
-          >
-            <div className='text-3xl mb-2'>📚</div>
-            <div className='font-semibold text-gray-900'>Manage Datasets</div>
-            <div className='text-sm text-gray-600 mt-1'>Create test data</div>
-          </Link>
-          <Link
-            href='/comparison'
-            className='p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-center'
-          >
-            <div className='text-3xl mb-2'>⚖️</div>
-            <div className='font-semibold text-gray-900'>Compare Chatbots</div>
-            <div className='text-sm text-gray-600 mt-1'>A/B testing</div>
-          </Link>
-        </div>
+      <Card title='Quick Actions' style={{ marginTop: 24 }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={8}>
+            <Link href='/campaigns/new'>
+              <Card
+                hoverable
+                style={{ textAlign: 'center', borderStyle: 'dashed' }}
+              >
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
+                <Title level={4} style={{ marginBottom: 8 }}>
+                  New Campaign
+                </Title>
+                <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                  Start evaluation
+                </Paragraph>
+              </Card>
+            </Link>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Link href='/datasets'>
+              <Card
+                hoverable
+                style={{ textAlign: 'center', borderStyle: 'dashed' }}
+              >
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
+                <Title level={4} style={{ marginBottom: 8 }}>
+                  Manage Datasets
+                </Title>
+                <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                  Create test data
+                </Paragraph>
+              </Card>
+            </Link>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Link href='/comparison'>
+              <Card
+                hoverable
+                style={{ textAlign: 'center', borderStyle: 'dashed' }}
+              >
+                <div style={{ fontSize: 48, marginBottom: 16 }}>⚖️</div>
+                <Title level={4} style={{ marginBottom: 8 }}>
+                  Compare Chatbots
+                </Title>
+                <Paragraph style={{ color: '#666', marginBottom: 0 }}>
+                  A/B testing
+                </Paragraph>
+              </Card>
+            </Link>
+          </Col>
+        </Row>
       </Card>
     </div>
   );

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Navbar from '@/components/layout/Navbar';
+import { AntdRegistry } from '@ant-design/nextjs-registry';
+import MainLayout from '@/components/layout/MainLayout';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -17,11 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang='en'>
-      <body className={`${inter.className} bg-gray-50`}>
-        <Navbar />
-        <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-          {children}
-        </main>
+      <body className={inter.className}>
+        <AntdRegistry>
+          <MainLayout>{children}</MainLayout>
+        </AntdRegistry>
       </body>
     </html>
   );
