@@ -73,7 +73,7 @@ export default function EvaluationsPage() {
             <Statistic
               title='Pending'
               value={12}
-              styles={{ content: { color: '#1890ff' } }}
+              valueStyle={{ color: '#1890ff' }}
               suffix='reviews'
             />
           </Card>
@@ -83,7 +83,7 @@ export default function EvaluationsPage() {
             <Statistic
               title='In Review'
               value={3}
-              styles={{ content: { color: '#fa8c16' } }}
+              valueStyle={{ color: '#fa8c16' }}
               suffix='active'
             />
           </Card>
@@ -93,7 +93,7 @@ export default function EvaluationsPage() {
             <Statistic
               title='Completed'
               value={156}
-              styles={{ content: { color: '#52c41a' } }}
+              valueStyle={{ color: '#52c41a' }}
               suffix='done'
             />
           </Card>

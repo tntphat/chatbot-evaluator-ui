@@ -166,10 +166,8 @@ export default function Dashboard() {
               title='Active Campaigns'
               value={stats.activeCampaigns}
               prefix={<PlayCircleOutlined />}
-              styles={{
-                content: {
-                  color: stats.activeCampaigns > 0 ? '#3f8600' : '#666',
-                },
+              valueStyle={{
+                color: stats.activeCampaigns > 0 ? '#3f8600' : '#666',
               }}
             />
           </Card>
@@ -181,15 +179,13 @@ export default function Dashboard() {
               value={stats.avgQuality}
               suffix='/ 5'
               prefix={<StarOutlined />}
-              styles={{
-                content: {
-                  color:
-                    stats.avgQuality >= 4
-                      ? '#3f8600'
-                      : stats.avgQuality >= 3
-                      ? '#fa8c16'
-                      : '#cf1322',
-                },
+              valueStyle={{
+                color:
+                  stats.avgQuality >= 4
+                    ? '#3f8600'
+                    : stats.avgQuality >= 3
+                    ? '#fa8c16'
+                    : '#cf1322',
               }}
             />
           </Card>
@@ -201,10 +197,8 @@ export default function Dashboard() {
               value={stats.avgPassRate}
               suffix='%'
               prefix={<CheckCircleOutlined />}
-              styles={{
-                content: {
-                  color: stats.avgPassRate >= 85 ? '#3f8600' : '#cf1322',
-                },
+              valueStyle={{
+                color: stats.avgPassRate >= 85 ? '#3f8600' : '#cf1322',
               }}
             />
           </Card>
