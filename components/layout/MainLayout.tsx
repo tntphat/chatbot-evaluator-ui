@@ -7,7 +7,6 @@ import {
   RocketOutlined,
   DatabaseOutlined,
   StarOutlined,
-  SwapOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   EditOutlined,
@@ -18,6 +17,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const { Header, Sider, Content } = Layout;
+
+type NavMenuItem = {
+  key: string;
+  icon: React.ReactNode;
+  label: React.ReactNode;
+};
+
+type NavDivider = {
+  type: 'divider';
+};
 
 export default function MainLayout({
   children,
@@ -30,7 +39,7 @@ export default function MainLayout({
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  const menuItems = [
+  const menuItems: Array<NavMenuItem | NavDivider> = [
     {
       key: '/',
       icon: <DashboardOutlined />,
@@ -77,22 +86,21 @@ export default function MainLayout({
   ];
 
   // Find selected key based on pathname
-  const getSelectedKey = () => {
-    if (pathname === '/') return '/';
+  const getSelectedKey = (): string => {
+    if (!pathname || pathname === '/') {
+      return '/';
+    }
 
-    // Get all menu items with keys (filter out dividers)
     const allItems = menuItems.filter(
-      (item: any) => item.key && item.key !== '/'
+      (item): item is NavMenuItem =>
+        'key' in item && typeof item.key === 'string' && item.key !== '/'
     );
 
-    // Sort by length descending to match most specific routes first
-    const sortedItems = allItems.sort(
-      (a: any, b: any) => b.key.length - a.key.length
-    );
-    const matchedItem = sortedItems.find((item: any) =>
-      pathname.startsWith(item.key)
-    );
-    return matchedItem ? matchedItem.key : '/';
+    const matchedItem = [...allItems]
+      .sort((a, b) => b.key.length - a.key.length)
+      .find((item) => pathname.startsWith(item.key));
+
+    return matchedItem?.key ?? '/';
   };
 
   return (

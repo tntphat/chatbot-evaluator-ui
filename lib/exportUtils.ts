@@ -1,7 +1,7 @@
 // Export utilities for generating reports
 
-import type { Campaign, TestDataset, HumanRating } from './types';
-import type { AutoEvaluationResult } from './mockLLMEvaluator';
+import type { Campaign, TestDataset, HumanRating, AutoEvalResult } from './types';
+import { DEFAULT_EVALUATION_CRITERIA } from './defaultCriteria';
 
 /**
  * Export campaign report as JSON
@@ -74,34 +74,39 @@ export function exportCampaignAsText(campaign: Campaign): void {
  * Export evaluation results as CSV
  */
 export function exportEvaluationsAsCSV(
-  evaluations: AutoEvaluationResult[],
+  evaluations: AutoEvalResult[],
   metadata?: { campaignName?: string; datasetName?: string }
 ): void {
+  const activeCriteria = DEFAULT_EVALUATION_CRITERIA.filter(
+    (criterion) => criterion.enabled
+  );
+
   const headers = [
     'Index',
     'Overall Score',
-    'Accuracy',
-    'Relevance',
-    'Coherence',
-    'Completeness',
-    'Toxicity',
-    'Hallucination',
-    'Issues',
-    'Passed',
+    ...activeCriteria.map((criterion) => criterion.name),
+    'Pass Rate (%)',
+    'Passed Questions',
+    'Failed Questions',
   ];
 
-  const rows = evaluations.map((eval, idx) => [
-    (idx + 1).toString(),
-    eval.overallScore.toString(),
-    eval.accuracyScore?.toString() || 'N/A',
-    eval.relevanceScore?.toString() || 'N/A',
-    eval.coherenceScore?.toString() || 'N/A',
-    eval.completenessScore?.toString() || 'N/A',
-    eval.toxicityScore?.toString() || 'N/A',
-    eval.hallucinationDetected ? 'Yes' : 'No',
-    eval.issues.length > 0 ? eval.issues.join('; ') : 'None',
-    eval.passedEvaluation ? 'PASS' : 'FAIL',
-  ]);
+  const rows = evaluations.map((evaluation, idx) => {
+    const criterionScores = activeCriteria.map((criterion) =>
+      evaluation.scoresByCriterion &&
+      typeof evaluation.scoresByCriterion[criterion.id] === 'number'
+        ? evaluation.scoresByCriterion[criterion.id].toString()
+        : 'N/A'
+    );
+
+    return [
+      (idx + 1).toString(),
+      evaluation.overallScore.toString(),
+      ...criterionScores,
+      evaluation.passRate.toString(),
+      evaluation.passedQuestions.toString(),
+      evaluation.failedQuestions.toString(),
+    ];
+  });
 
   let csv = headers.join(',') + '\n';
   rows.forEach((row) => {
@@ -215,7 +220,7 @@ export function exportHumanRatingsAsJSON(
 export function exportComprehensiveReport(data: {
   campaign?: Campaign;
   dataset?: TestDataset;
-  autoEvaluations?: AutoEvaluationResult[];
+  autoEvaluations?: AutoEvalResult[];
   humanRatings?: any[];
 }): void {
   const lines: string[] = [];
@@ -261,19 +266,73 @@ export function exportComprehensiveReport(data: {
     lines.push('3. AUTOMATIC EVALUATION RESULTS');
     lines.push('───────────────────────────────────────────────────────────');
     lines.push('');
-    const passed = data.autoEvaluations.filter(
-      (e) => e.passedEvaluation
-    ).length;
-    const avgScore =
-      data.autoEvaluations.reduce((sum, e) => sum + e.overallScore, 0) /
-      data.autoEvaluations.length;
-    lines.push(`Total Evaluations: ${data.autoEvaluations.length}`);
-    lines.push(`Passed: ${passed}`);
-    lines.push(`Failed: ${data.autoEvaluations.length - passed}`);
-    lines.push(
-      `Pass Rate: ${((passed / data.autoEvaluations.length) * 100).toFixed(1)}%`
+    const totalRuns = data.autoEvaluations.length;
+    const totalQuestions = data.autoEvaluations.reduce(
+      (sum, evaluation) => sum + evaluation.totalQuestions,
+      0
     );
-    lines.push(`Average Score: ${avgScore.toFixed(1)}/100`);
+    const totalPassedQuestions = data.autoEvaluations.reduce(
+      (sum, evaluation) => sum + evaluation.passedQuestions,
+      0
+    );
+    const totalFailedQuestions = data.autoEvaluations.reduce(
+      (sum, evaluation) => sum + evaluation.failedQuestions,
+      0
+    );
+    const avgPassRate =
+      Math.round(
+        (data.autoEvaluations.reduce(
+          (sum, evaluation) => sum + evaluation.passRate,
+          0
+        ) /
+          totalRuns) *
+          10
+      ) / 10;
+    const avgOverallScore =
+      Math.round(
+        (data.autoEvaluations.reduce(
+          (sum, evaluation) => sum + evaluation.overallScore,
+          0
+        ) /
+          totalRuns) *
+          10
+      ) / 10;
+
+    lines.push(`Evaluation Runs: ${totalRuns}`);
+    lines.push(`Total Questions Evaluated: ${totalQuestions}`);
+    lines.push(`Passed Questions: ${totalPassedQuestions}`);
+    lines.push(`Failed Questions: ${totalFailedQuestions}`);
+    lines.push(`Average Pass Rate: ${avgPassRate.toFixed(1)}%`);
+    lines.push(`Average Overall Score: ${avgOverallScore.toFixed(1)}/5.0`);
+    lines.push('');
+
+    const criteriaAverages: Record<string, number[]> = {};
+    data.autoEvaluations.forEach((evaluation) => {
+      Object.entries(evaluation.scoresByCriterion).forEach(
+        ([criterionId, score]) => {
+          if (!criteriaAverages[criterionId]) {
+            criteriaAverages[criterionId] = [];
+          }
+          criteriaAverages[criterionId].push(score);
+        }
+      );
+    });
+
+    lines.push('Criterion Averages:');
+    DEFAULT_EVALUATION_CRITERIA.forEach((criterion) => {
+      if (!criterion.enabled) return;
+      const scores = criteriaAverages[criterion.id] || [];
+      if (scores.length === 0) {
+        lines.push(`  - ${criterion.name}: N/A`);
+      } else {
+        const avg =
+          Math.round(
+            (scores.reduce((sum, score) => sum + score, 0) / scores.length) *
+              10
+          ) / 10;
+        lines.push(`  - ${criterion.name}: ${avg.toFixed(1)}/5`);
+      }
+    });
     lines.push('');
   }
 
