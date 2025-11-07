@@ -103,6 +103,9 @@ export default function DatasetDetailPage() {
           </div>
         </div>
         <div className='flex gap-2'>
+          <Link href={`/datasets/${params.id}/edit`}>
+            <Button variant='secondary'>✏️ Edit Dataset</Button>
+          </Link>
           <Button
             variant='secondary'
             onClick={handleExport}

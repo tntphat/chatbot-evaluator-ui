@@ -273,14 +273,14 @@ export default function Dashboard() {
                 borderStyle: 'dashed',
                 cursor: 'pointer',
               }}
-              onClick={() => router.push('/campaigns/new')}
+              onClick={() => router.push('/datasets/new')}
             >
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
               <Title level={4} style={{ marginBottom: 8 }}>
-                New Campaign
+                Create Test Suite
               </Title>
               <Paragraph style={{ color: '#666', marginBottom: 0 }}>
-                Start evaluation
+                Build evaluation dataset
               </Paragraph>
             </Card>
           </Col>
@@ -311,14 +311,14 @@ export default function Dashboard() {
                 borderStyle: 'dashed',
                 cursor: 'pointer',
               }}
-              onClick={() => router.push('/comparison')}
+              onClick={() => router.push('/auto-evaluate')}
             >
-              <div style={{ fontSize: 48, marginBottom: 16 }}>⚖️</div>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
               <Title level={4} style={{ marginBottom: 8 }}>
-                Compare Chatbots
+                Auto Evaluate
               </Title>
               <Paragraph style={{ color: '#666', marginBottom: 0 }}>
-                A/B testing
+                LLM-powered testing
               </Paragraph>
             </Card>
           </Col>

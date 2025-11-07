@@ -10,6 +10,9 @@ import {
   SwapOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  EditOutlined,
+  ThunderboltOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -41,29 +44,53 @@ export default function MainLayout({
     {
       key: '/datasets',
       icon: <DatabaseOutlined />,
-      label: <Link href='/datasets'>Datasets</Link>,
+      label: <Link href='/datasets'>Test Datasets</Link>,
     },
     {
       key: '/evaluations',
       icon: <StarOutlined />,
-      label: <Link href='/evaluations'>Evaluations</Link>,
+      label: <Link href='/evaluations'>Evaluation Queue</Link>,
     },
     {
-      key: '/comparison',
-      icon: <SwapOutlined />,
-      label: <Link href='/comparison'>Comparison</Link>,
+      key: '/conversation/demo',
+      icon: <MessageOutlined />,
+      label: <Link href='/conversation/demo'>Conversation Review</Link>,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: '/datasets/new',
+      icon: <EditOutlined />,
+      label: <Link href='/datasets/new'>Create Test Suite</Link>,
+    },
+    {
+      key: '/evaluations/review/eval_001',
+      icon: <StarOutlined />,
+      label: <Link href='/evaluations/review/eval_001'>Manual Review</Link>,
+    },
+    {
+      key: '/auto-evaluate',
+      icon: <ThunderboltOutlined />,
+      label: <Link href='/auto-evaluate'>Auto Evaluate</Link>,
     },
   ];
 
   // Find selected key based on pathname
   const getSelectedKey = () => {
     if (pathname === '/') return '/';
-    // Sort by length descending to match most specific routes first
-    const sortedItems = [...menuItems].sort(
-      (a, b) => b.key.length - a.key.length
+
+    // Get all menu items with keys (filter out dividers)
+    const allItems = menuItems.filter(
+      (item: any) => item.key && item.key !== '/'
     );
-    const matchedItem = sortedItems.find(
-      (item) => item.key !== '/' && pathname.startsWith(item.key)
+
+    // Sort by length descending to match most specific routes first
+    const sortedItems = allItems.sort(
+      (a: any, b: any) => b.key.length - a.key.length
+    );
+    const matchedItem = sortedItems.find((item: any) =>
+      pathname.startsWith(item.key)
     );
     return matchedItem ? matchedItem.key : '/';
   };

@@ -117,7 +117,7 @@ export default function EvaluationsPage() {
                   key='review'
                   type='primary'
                   icon={<EyeOutlined />}
-                  href={`/evaluations/${evaluation.id}`}
+                  href={`/evaluations/review/${evaluation.id}`}
                 >
                   Review Now
                 </Button>,

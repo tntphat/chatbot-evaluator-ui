@@ -153,12 +153,7 @@ export default function CampaignsPage() {
             okText='Yes'
             cancelText='No'
           >
-            <Button
-              type='link'
-              danger
-              size='small'
-              icon={<DeleteOutlined />}
-            >
+            <Button type='link' danger size='small' icon={<DeleteOutlined />}>
               Delete
             </Button>
           </Popconfirm>
@@ -186,7 +181,7 @@ export default function CampaignsPage() {
             Manage and monitor your evaluation campaigns
           </Paragraph>
         </div>
-        <Link href='/campaigns/new'>
+        <Link href='/datasets/new'>
           <Button type='primary' icon={<PlusOutlined />} size='large'>
             New Campaign
           </Button>
@@ -212,7 +207,8 @@ export default function CampaignsPage() {
             type={filter === 'completed' ? 'primary' : 'default'}
             onClick={() => setFilter('completed')}
           >
-            Completed ({campaigns.filter((c) => c.status === 'completed').length})
+            Completed (
+            {campaigns.filter((c) => c.status === 'completed').length})
           </Button>
           <Button
             type={filter === 'draft' ? 'primary' : 'default'}
@@ -233,7 +229,7 @@ export default function CampaignsPage() {
             emptyText: (
               <div style={{ padding: '40px 0' }}>
                 <Paragraph>No campaigns found</Paragraph>
-                <Link href='/campaigns/new'>
+                <Link href='/datasets/new'>
                   <Button type='primary'>Create Campaign</Button>
                 </Link>
               </div>

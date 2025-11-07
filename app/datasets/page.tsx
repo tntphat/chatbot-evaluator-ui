@@ -29,17 +29,13 @@ export default function DatasetsPage() {
   const [datasets, setDatasets] = useState<TestDataset[]>([]);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = () => {
     setDatasets(DatasetStorage.getAll() as TestDataset[]);
-  };
+  }, []);
 
   const handleDelete = (id: string) => {
     DatasetStorage.delete(id);
     message.success('Dataset deleted successfully!');
-    loadData();
+    setDatasets(DatasetStorage.getAll() as TestDataset[]);
   };
 
   return (
