@@ -747,7 +747,6 @@ export default function ComparisonPage() {
               variant='secondary'
               onClick={() => {
                 setShowComparison(false);
-                setStep('config');
               }}
             >
               Compare Different Versions
