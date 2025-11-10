@@ -58,8 +58,7 @@ const normalizeCriteria = (
   METRIC_KEYS.forEach((metric) => {
     const key = `${metric}Threshold` as keyof EvaluationCriteria;
     if (typeof merged[key] !== 'number') {
-      (merged[key] as number | undefined) =
-        DEFAULT_CRITERIA_THRESHOLDS[metric];
+      (merged[key] as number | undefined) = DEFAULT_CRITERIA_THRESHOLDS[metric];
     }
   });
 
@@ -312,9 +311,10 @@ export default function AutoEvalHistoryDetailPage() {
                 {criteriaEntries.length > 0 && (
                   <div className='p-3 bg-white border border-gray-300 rounded text-xs text-gray-800 space-y-2'>
                     {criteriaEntries.map(([key, detail]) => {
-                      const criteriaThreshold = appliedCriteria[
-                        `${key}Threshold` as keyof EvaluationCriteria
-                      ];
+                      const criteriaThreshold =
+                        appliedCriteria[
+                          `${key}Threshold` as keyof EvaluationCriteria
+                        ];
                       const threshold =
                         typeof detail.threshold === 'number'
                           ? detail.threshold

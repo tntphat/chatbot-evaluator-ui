@@ -872,9 +872,8 @@ export default function AutoEvaluatePage() {
                       ({ key, flag, title, description }) => {
                         const checked = Boolean(criteria[flag]);
                         const thresholdKey = `${key}Threshold`;
-                        const criteriaThreshold = criteria[
-                          thresholdKey as keyof EvaluationCriteria
-                        ];
+                        const criteriaThreshold =
+                          criteria[thresholdKey as keyof EvaluationCriteria];
                         const thresholdValue = getThresholdValue(
                           key,
                           typeof criteriaThreshold === 'number'

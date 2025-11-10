@@ -1,6 +1,11 @@
 // Export utilities for generating reports
 
-import type { Campaign, TestDataset, HumanRating, AutoEvalResult } from './types';
+import type {
+  Campaign,
+  TestDataset,
+  HumanRating,
+  AutoEvalResult,
+} from './types';
 import { DEFAULT_EVALUATION_CRITERIA } from './defaultCriteria';
 
 /**
@@ -327,8 +332,7 @@ export function exportComprehensiveReport(data: {
       } else {
         const avg =
           Math.round(
-            (scores.reduce((sum, score) => sum + score, 0) / scores.length) *
-              10
+            (scores.reduce((sum, score) => sum + score, 0) / scores.length) * 10
           ) / 10;
         lines.push(`  - ${criterion.name}: ${avg.toFixed(1)}/5`);
       }
@@ -377,10 +381,3 @@ function downloadBlob(blob: Blob, filename: string): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-
-
-
-
-
-
-

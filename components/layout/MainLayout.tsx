@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Menu, theme } from 'antd';
+import { Layout, Menu, theme, type MenuProps } from 'antd';
 import {
   DashboardOutlined,
   RocketOutlined,
@@ -18,16 +18,6 @@ import { usePathname } from 'next/navigation';
 
 const { Header, Sider, Content } = Layout;
 
-type NavMenuItem = {
-  key: string;
-  icon: React.ReactNode;
-  label: React.ReactNode;
-};
-
-type NavDivider = {
-  type: 'divider';
-};
-
 export default function MainLayout({
   children,
 }: {
@@ -39,49 +29,74 @@ export default function MainLayout({
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  const menuItems: Array<NavMenuItem | NavDivider> = [
+  const menuItems: MenuProps['items'] = [
     {
       key: '/',
       icon: <DashboardOutlined />,
       label: <Link href='/'>Dashboard</Link>,
     },
     {
-      key: '/campaigns',
-      icon: <RocketOutlined />,
-      label: <Link href='/campaigns'>Campaigns</Link>,
-    },
-    {
-      key: '/datasets',
+      key: 'submenu-datasets',
       icon: <DatabaseOutlined />,
-      label: <Link href='/datasets'>Test Datasets</Link>,
+      label: 'Datasets',
+      children: [
+        {
+          key: '/datasets',
+          icon: <DatabaseOutlined />,
+          label: <Link href='/datasets'>Test Datasets</Link>,
+        },
+        {
+          key: '/datasets/new',
+          icon: <EditOutlined />,
+          label: <Link href='/datasets/new'>Create Test Suite</Link>,
+        },
+      ],
     },
     {
-      key: '/evaluations',
+      key: 'submenu-manual',
       icon: <StarOutlined />,
-      label: <Link href='/evaluations'>Evaluation Queue</Link>,
+      label: 'Manual Evaluation',
+      children: [
+        {
+          key: '/evaluations',
+          icon: <StarOutlined />,
+          label: <Link href='/evaluations'>Evaluation Queue</Link>,
+        },
+        {
+          key: '/conversation/demo',
+          icon: <MessageOutlined />,
+          label: <Link href='/conversation/demo'>Conversation Review</Link>,
+        },
+        {
+          key: '/evaluations/review/eval_001',
+          icon: <EditOutlined />,
+          label: <Link href='/evaluations/review/eval_001'>Manual Review</Link>,
+        },
+      ],
     },
     {
-      key: '/conversation/demo',
-      icon: <MessageOutlined />,
-      label: <Link href='/conversation/demo'>Conversation Review</Link>,
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: '/datasets/new',
-      icon: <EditOutlined />,
-      label: <Link href='/datasets/new'>Create Test Suite</Link>,
-    },
-    {
-      key: '/evaluations/review/eval_001',
-      icon: <StarOutlined />,
-      label: <Link href='/evaluations/review/eval_001'>Manual Review</Link>,
-    },
-    {
-      key: '/auto-evaluate',
+      key: 'submenu-auto',
       icon: <ThunderboltOutlined />,
-      label: <Link href='/auto-evaluate'>Auto Evaluate</Link>,
+      label: 'Auto Evaluation',
+      children: [
+        {
+          key: '/auto-evaluate',
+          icon: <ThunderboltOutlined />,
+          label: <Link href='/auto-evaluate'>Auto Evaluate</Link>,
+        },
+      ],
+    },
+    {
+      key: 'submenu-campaigns',
+      icon: <RocketOutlined />,
+      label: 'Campaigns',
+      children: [
+        {
+          key: '/campaigns',
+          icon: <RocketOutlined />,
+          label: <Link href='/campaigns'>Campaigns</Link>,
+        },
+      ],
     },
   ];
 
@@ -91,16 +106,30 @@ export default function MainLayout({
       return '/';
     }
 
-    const allItems = menuItems.filter(
-      (item): item is NavMenuItem =>
-        'key' in item && typeof item.key === 'string' && item.key !== '/'
-    );
+    const flattenKeys = (items: MenuProps['items']): string[] => {
+      if (!items) return [];
+      const keys: string[] = [];
+      items.forEach((item) => {
+        if (!item) return;
+        if ('children' in item && item.children) {
+          keys.push(...flattenKeys(item.children));
+        }
+        if ('key' in item && item.key && typeof item.key === 'string') {
+          if (!item.key.startsWith('submenu-') && item.key !== '/') {
+            keys.push(item.key);
+          }
+        }
+      });
+      return keys;
+    };
 
-    const matchedItem = [...allItems]
-      .sort((a, b) => b.key.length - a.key.length)
-      .find((item) => pathname.startsWith(item.key));
+    const keys = flattenKeys(menuItems);
 
-    return matchedItem?.key ?? '/';
+    const matchedKey = keys
+      .sort((a, b) => b.length - a.length)
+      .find((key) => pathname.startsWith(key));
+
+    return matchedKey ?? '/';
   };
 
   return (

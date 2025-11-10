@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import {
   Card,
   Button,
@@ -10,55 +11,99 @@ import {
   Statistic,
   Space,
   List,
+  Empty,
 } from 'antd';
-import { StarOutlined, FilterOutlined, EyeOutlined } from '@ant-design/icons';
+import { FilterOutlined, EyeOutlined } from '@ant-design/icons';
+import {
+  CampaignStorage,
+  ChatbotStorage,
+  DatasetStorage,
+  EvaluationStorage,
+} from '@/lib/storage';
+import type {
+  Campaign,
+  Chatbot,
+  EvaluationItem,
+  TestDataset,
+} from '@/lib/types';
 
 const { Title, Paragraph, Text } = Typography;
 
+const getPriorityTag = (priority?: EvaluationItem['priority']) => {
+  const colors: Record<string, string> = {
+    high: 'red',
+    medium: 'orange',
+    low: 'default',
+  };
+  const level = priority ?? 'medium';
+  return <Tag color={colors[level]}>{level.toUpperCase()}</Tag>;
+};
+
+const getStatusTag = (status: EvaluationItem['status']) => {
+  const colors: Record<EvaluationItem['status'], string> = {
+    pending: 'blue',
+    in_review: 'orange',
+    completed: 'green',
+  };
+  return (
+    <Tag color={colors[status]}>{status.replace('_', ' ').toUpperCase()}</Tag>
+  );
+};
+
 export default function EvaluationsPage() {
-  const mockEvaluations = [
-    {
-      id: '1',
-      conversation: 'Customer refund request',
-      chatbot: 'Support Bot v2.1',
-      status: 'pending',
-      priority: 'high',
-    },
-    {
-      id: '2',
-      conversation: 'Product inquiry',
-      chatbot: 'Sales Bot v1.5',
-      status: 'in_review',
-      priority: 'medium',
-    },
-    {
-      id: '3',
-      conversation: 'General question',
-      chatbot: 'FAQ Bot v3.0',
-      status: 'completed',
-      priority: 'low',
-    },
-  ];
+  const [evaluations, setEvaluations] = useState<EvaluationItem[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [chatbots, setChatbots] = useState<Chatbot[]>([]);
+  const [datasets, setDatasets] = useState<TestDataset[]>([]);
 
-  const getPriorityTag = (priority: string) => {
-    const colors: Record<string, string> = {
-      high: 'red',
-      medium: 'orange',
-      low: 'default',
-    };
-    return <Tag color={colors[priority]}>{priority.toUpperCase()}</Tag>;
-  };
+  useEffect(() => {
+    setEvaluations(EvaluationStorage.getAll() as EvaluationItem[]);
+    setCampaigns(CampaignStorage.getAll() as Campaign[]);
+    setChatbots(ChatbotStorage.getAll() as Chatbot[]);
+    setDatasets(DatasetStorage.getAll() as TestDataset[]);
+  }, []);
 
-  const getStatusTag = (status: string) => {
-    const colors: Record<string, string> = {
-      pending: 'blue',
-      in_review: 'orange',
-      completed: 'green',
-    };
-    return (
-      <Tag color={colors[status]}>{status.replace('_', ' ').toUpperCase()}</Tag>
+  const campaignMap = useMemo(() => {
+    const map = new Map<string, Campaign>();
+    campaigns.forEach((campaign) => map.set(campaign.id, campaign));
+    return map;
+  }, [campaigns]);
+
+  const chatbotMap = useMemo(() => {
+    const map = new Map<string, Chatbot>();
+    chatbots.forEach((chatbot) => map.set(chatbot.id, chatbot));
+    return map;
+  }, [chatbots]);
+
+  const datasetMap = useMemo(() => {
+    const map = new Map<string, TestDataset>();
+    datasets.forEach((dataset) => map.set(dataset.id, dataset));
+    return map;
+  }, [datasets]);
+
+  const stats = useMemo(() => {
+    return evaluations.reduce(
+      (acc, evaluation) => {
+        acc[evaluation.status] += 1;
+        return acc;
+      },
+      {
+        pending: 0,
+        in_review: 0,
+        completed: 0,
+      } as Record<EvaluationItem['status'], number>
     );
-  };
+  }, [evaluations]);
+
+  const queue = useMemo(() => {
+    return [...evaluations].sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 } as const;
+      const aPriority = priorityOrder[a.priority ?? 'medium'];
+      const bPriority = priorityOrder[b.priority ?? 'medium'];
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }, [evaluations]);
 
   return (
     <div>
@@ -72,7 +117,7 @@ export default function EvaluationsPage() {
           <Card>
             <Statistic
               title='Pending'
-              value={12}
+              value={stats.pending}
               valueStyle={{ color: '#1890ff' }}
               suffix='reviews'
             />
@@ -82,7 +127,7 @@ export default function EvaluationsPage() {
           <Card>
             <Statistic
               title='In Review'
-              value={3}
+              value={stats.in_review}
               valueStyle={{ color: '#fa8c16' }}
               suffix='active'
             />
@@ -92,7 +137,7 @@ export default function EvaluationsPage() {
           <Card>
             <Statistic
               title='Completed'
-              value={156}
+              value={stats.completed}
               valueStyle={{ color: '#52c41a' }}
               suffix='done'
             />
@@ -109,36 +154,59 @@ export default function EvaluationsPage() {
         }
       >
         <List
-          dataSource={mockEvaluations}
-          renderItem={(evaluation) => (
-            <List.Item
-              actions={[
-                <Button
-                  key='review'
-                  type='primary'
-                  icon={<EyeOutlined />}
-                  href={`/evaluations/review/${evaluation.id}`}
-                >
-                  Review Now
-                </Button>,
-              ]}
-            >
-              <List.Item.Meta
-                title={
-                  <Space>
-                    {getPriorityTag(evaluation.priority)}
-                    <Text strong>{evaluation.conversation}</Text>
-                  </Space>
-                }
-                description={
-                  <Space>
-                    <Text type='secondary'>{evaluation.chatbot}</Text>
-                    {getStatusTag(evaluation.status)}
-                  </Space>
-                }
-              />
-            </List.Item>
-          )}
+          dataSource={queue}
+          locale={{
+            emptyText: (
+              <Empty description='No manual review tasks yet. Create a campaign with human review to start.' />
+            ),
+          }}
+          renderItem={(evaluation) => {
+            const campaign = campaignMap.get(evaluation.campaignId);
+            const dataset = evaluation.datasetId
+              ? datasetMap.get(evaluation.datasetId)
+              : undefined;
+            const chatbot = chatbotMap.get(evaluation.chatbotId);
+
+            return (
+              <List.Item
+                actions={[
+                  <Button
+                    key='review'
+                    type='primary'
+                    icon={<EyeOutlined />}
+                    href={`/evaluations/review/${evaluation.id}`}
+                  >
+                    Review Now
+                  </Button>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <Space>
+                      {getPriorityTag(evaluation.priority)}
+                      <Text strong>
+                        {evaluation.userMessage || 'Manual evaluation item'}
+                      </Text>
+                    </Space>
+                  }
+                  description={
+                    <Space size='small' wrap>
+                      {campaign && (
+                        <Tag color='blue'>Campaign: {campaign.name}</Tag>
+                      )}
+                      {dataset && (
+                        <Tag color='purple'>Dataset: {dataset.name}</Tag>
+                      )}
+                      {chatbot && (
+                        <Tag color='geekblue'>Chatbot: {chatbot.name}</Tag>
+                      )}
+                      {getStatusTag(evaluation.status)}
+                    </Space>
+                  }
+                />
+              </List.Item>
+            );
+          }}
         />
       </Card>
     </div>
