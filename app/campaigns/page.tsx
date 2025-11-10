@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Card,
   Button,
   Tag,
   Space,
   Typography,
-  Row,
-  Col,
   Progress,
   Popconfirm,
   message,
@@ -20,22 +18,44 @@ import {
   DeleteOutlined,
   EyeOutlined,
   PlayCircleOutlined,
-  PauseCircleOutlined,
 } from '@ant-design/icons';
 import { CampaignStorage, ChatbotStorage } from '@/lib/storage';
 import type { Campaign, Chatbot } from '@/lib/types';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import {
+  DEFAULT_CRITERIA_THRESHOLDS,
+  DEFAULT_OVERALL_THRESHOLD,
+  type EvaluationCriteria,
+} from '@/lib/mockLLMEvaluator';
 
 const { Title, Paragraph, Text } = Typography;
 
-export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [chatbots, setChatbots] = useState<Chatbot[]>([]);
-  const [filter, setFilter] = useState<'all' | Campaign['status']>('all');
+const SEMANTIC_ONLY_CRITERIA: EvaluationCriteria = {
+  checkAccuracy: true,
+  accuracyThreshold: DEFAULT_CRITERIA_THRESHOLDS.accuracy,
+  checkRelevance: false,
+  relevanceThreshold: DEFAULT_CRITERIA_THRESHOLDS.relevance,
+  checkCoherence: false,
+  coherenceThreshold: DEFAULT_CRITERIA_THRESHOLDS.coherence,
+  checkCompleteness: false,
+  completenessThreshold: DEFAULT_CRITERIA_THRESHOLDS.completeness,
+  checkToxicity: false,
+  toxicityThreshold: DEFAULT_CRITERIA_THRESHOLDS.toxicity,
+  checkHallucination: false,
+  hallucinationThreshold: DEFAULT_CRITERIA_THRESHOLDS.hallucination,
+  overallThreshold: DEFAULT_OVERALL_THRESHOLD,
+};
 
-  useEffect(() => {
-    loadData();
-  }, []);
+export default function CampaignsPage() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>(
+    () => CampaignStorage.getAll() as Campaign[]
+  );
+  const [chatbots, setChatbots] = useState<Chatbot[]>(
+    () => ChatbotStorage.getAll() as Chatbot[]
+  );
+  const [filter, setFilter] = useState<'all' | Campaign['status']>('all');
+  const router = useRouter();
 
   const loadData = () => {
     setCampaigns(CampaignStorage.getAll() as Campaign[]);
@@ -44,6 +64,76 @@ export default function CampaignsPage() {
 
   const filteredCampaigns =
     filter === 'all' ? campaigns : campaigns.filter((c) => c.status === filter);
+
+  const buildCriteriaFromCampaign = (
+    campaign: Campaign
+  ): EvaluationCriteria => {
+    const metrics = campaign.metrics || [];
+    const thresholds = campaign.metricThresholds || {};
+    const getThreshold = (metric: keyof typeof DEFAULT_CRITERIA_THRESHOLDS) =>
+      (thresholds as Record<string, number | undefined>)[metric] ??
+      DEFAULT_CRITERIA_THRESHOLDS[metric];
+
+    return {
+      checkAccuracy: metrics.includes('accuracy') || metrics.length === 0,
+      accuracyThreshold: getThreshold('accuracy'),
+      checkRelevance: metrics.includes('relevance'),
+      relevanceThreshold: getThreshold('relevance'),
+      checkCoherence: metrics.includes('coherence'),
+      coherenceThreshold: getThreshold('coherence'),
+      checkCompleteness: metrics.includes('completeness'),
+      completenessThreshold: getThreshold('completeness'),
+      checkToxicity: metrics.includes('toxicity'),
+      toxicityThreshold: getThreshold('toxicity'),
+      checkHallucination: metrics.includes('hallucination'),
+      hallucinationThreshold: getThreshold('hallucination'),
+      overallThreshold:
+        typeof campaign.overallThreshold === 'number'
+          ? campaign.overallThreshold
+          : DEFAULT_OVERALL_THRESHOLD,
+    };
+  };
+
+  const handleStartCampaign = (campaign: Campaign) => {
+    if (!campaign.datasetId) {
+      message.error('Campaign does not have an associated dataset.');
+      return;
+    }
+
+    const chatbotId = campaign.chatbotIds?.[0];
+    if (!chatbotId) {
+      message.error('Campaign does not have any chatbot selected.');
+      return;
+    }
+
+    const mode: 'semantic' | 'criteria' = campaign.evaluationMode ?? 'criteria';
+
+    CampaignStorage.update(campaign.id, {
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      progress: 0,
+    });
+    loadData();
+
+    if (typeof window !== 'undefined') {
+      const rerunConfig = {
+        datasetId: campaign.datasetId,
+        chatbotId,
+        evaluator: mode === 'semantic' ? 'embedding' : 'gpt-4',
+        mode,
+        criteria:
+          mode === 'semantic'
+            ? { ...SEMANTIC_ONLY_CRITERIA }
+            : buildCriteriaFromCampaign(campaign),
+        campaignId: campaign.id,
+      };
+      window.localStorage.setItem(
+        'auto_eval_rerun_config',
+        JSON.stringify(rerunConfig)
+      );
+    }
+    router.push('/auto-evaluate');
+  };
 
   const getChatbotNames = (chatbotIds: string[]) => {
     return chatbotIds
@@ -74,7 +164,7 @@ export default function CampaignsPage() {
     {
       title: 'Chatbots',
       key: 'chatbots',
-      render: (_: any, record: Campaign) => (
+      render: (_: unknown, record: Campaign) => (
         <Text>{getChatbotNames(record.chatbotIds)}</Text>
       ),
     },
@@ -94,6 +184,13 @@ export default function CampaignsPage() {
       },
     },
     {
+      title: 'Mode',
+      dataIndex: 'evaluationMode',
+      key: 'evaluationMode',
+      render: (mode: Campaign['evaluationMode']) =>
+        mode === 'semantic' ? 'Semantic' : 'Criteria',
+    },
+    {
       title: 'Progress',
       dataIndex: 'progress',
       key: 'progress',
@@ -104,7 +201,7 @@ export default function CampaignsPage() {
     {
       title: 'Results',
       key: 'results',
-      render: (_: any, record: Campaign) =>
+      render: (_: unknown, record: Campaign) =>
         record.results ? (
           <Space size='small'>
             <Statistic
@@ -127,7 +224,7 @@ export default function CampaignsPage() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: Campaign) => (
+      render: (_: unknown, record: Campaign) => (
         <Space>
           <Link href={`/campaigns/${record.id}`}>
             <Button type='link' size='small' icon={<EyeOutlined />}>
@@ -139,9 +236,7 @@ export default function CampaignsPage() {
               type='link'
               size='small'
               icon={<PlayCircleOutlined />}
-              onClick={() =>
-                message.info('Feature coming soon: Start campaign')
-              }
+              onClick={() => handleStartCampaign(record)}
             >
               Start
             </Button>
@@ -181,7 +276,7 @@ export default function CampaignsPage() {
             Manage and monitor your evaluation campaigns
           </Paragraph>
         </div>
-        <Link href='/datasets/new'>
+        <Link href='/campaigns/new'>
           <Button type='primary' icon={<PlusOutlined />} size='large'>
             New Campaign
           </Button>

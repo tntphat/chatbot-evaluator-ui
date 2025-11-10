@@ -19,6 +19,9 @@ export interface Campaign {
   datasetId?: string;
   status: 'draft' | 'running' | 'paused' | 'completed' | 'failed';
   metrics: string[];
+  evaluationMode?: 'semantic' | 'criteria';
+  metricThresholds?: Record<string, number>;
+  overallThreshold?: number;
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
@@ -79,8 +82,12 @@ export interface EvaluationItem {
   campaignId: string;
   chatbotId: string;
   testItemId: string;
+  datasetId?: string;
   userMessage: string;
   botResponse: string;
+  expectedAnswer?: string;
+  category?: string;
+  priority?: 'high' | 'medium' | 'low';
   responseTime: number;
   metrics: {
     accuracy: number;

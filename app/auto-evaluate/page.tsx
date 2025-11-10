@@ -11,17 +11,180 @@ import {
   getEvaluationSummary,
   type EvaluationCriteria,
   type AutoEvaluationResult,
+  DEFAULT_CRITERIA_THRESHOLDS,
+  DEFAULT_OVERALL_THRESHOLD,
 } from '@/lib/mockLLMEvaluator';
+import { AutoEvalHistoryStorage, CampaignStorage } from '@/lib/storage';
+import Link from 'next/link';
+
+type AutoEvalHistoryEntry = {
+  id: string;
+  timestamp: string;
+  datasetId: string;
+  datasetName: string;
+  chatbotId: string;
+  chatbotName: string;
+  evaluator: string;
+  mode: 'semantic' | 'criteria';
+  totalTests: number;
+  passRate: number;
+  avgScore: number;
+  criteria: EvaluationCriteria;
+  results: AutoEvaluationResult[];
+  campaignId?: string;
+};
+
+type RerunConfig = {
+  datasetId: string;
+  chatbotId: string;
+  evaluator: string;
+  mode: 'semantic' | 'criteria';
+  criteria: EvaluationCriteria;
+  campaignId?: string;
+};
+
+type MetricKey =
+  | 'accuracy'
+  | 'relevance'
+  | 'coherence'
+  | 'completeness'
+  | 'toxicity'
+  | 'hallucination';
 
 const CRITERION_LABELS: Record<string, string> = {
-  accuracy: 'Accuracy',
-  relevance: 'Relevance',
-  coherence: 'Coherence',
+  accuracy: 'Factuality',
+  relevance: 'Task Fulfillment',
+  coherence: 'Clarity & Coherence',
   completeness: 'Completeness',
-  clarity: 'Clarity',
-  citations: 'Citations',
-  tone: 'Tone',
+  toxicity: 'Safety (Toxicity)',
+  hallucination: 'Hallucination Risk',
 };
+
+const BASE_CRITERIA_STATE: EvaluationCriteria = {
+  checkAccuracy: true,
+  accuracyThreshold: DEFAULT_CRITERIA_THRESHOLDS.accuracy,
+  checkRelevance: true,
+  relevanceThreshold: DEFAULT_CRITERIA_THRESHOLDS.relevance,
+  checkCoherence: true,
+  coherenceThreshold: DEFAULT_CRITERIA_THRESHOLDS.coherence,
+  checkCompleteness: true,
+  completenessThreshold: DEFAULT_CRITERIA_THRESHOLDS.completeness,
+  checkToxicity: false,
+  toxicityThreshold: DEFAULT_CRITERIA_THRESHOLDS.toxicity,
+  checkHallucination: false,
+  hallucinationThreshold: DEFAULT_CRITERIA_THRESHOLDS.hallucination,
+  overallThreshold: DEFAULT_OVERALL_THRESHOLD,
+};
+
+const mergeWithBaseCriteria = (
+  partial: Partial<EvaluationCriteria>
+): EvaluationCriteria => ({
+  ...BASE_CRITERIA_STATE,
+  ...partial,
+});
+
+const CRITERIA_FLAG_KEYS: Array<keyof EvaluationCriteria> = [
+  'checkAccuracy',
+  'checkRelevance',
+  'checkCoherence',
+  'checkCompleteness',
+  'checkToxicity',
+  'checkHallucination',
+];
+
+const CRITERIA_CONTROL_CONFIG: Array<{
+  key: MetricKey;
+  flag: keyof EvaluationCriteria;
+  title: string;
+  description: string;
+}> = [
+  {
+    key: 'accuracy',
+    flag: 'checkAccuracy',
+    title: 'Factuality (Accuracy)',
+    description: 'Compare actual answer with expected answer',
+  },
+  {
+    key: 'relevance',
+    flag: 'checkRelevance',
+    title: 'Task Fulfillment (Relevance)',
+    description: 'Check if answer stays on-task with the prompt',
+  },
+  {
+    key: 'coherence',
+    flag: 'checkCoherence',
+    title: 'Clarity & Coherence',
+    description: 'Evaluate logical flow and clarity',
+  },
+  {
+    key: 'completeness',
+    flag: 'checkCompleteness',
+    title: 'Completeness',
+    description: 'Check if answer covers all necessary information',
+  },
+  {
+    key: 'toxicity',
+    flag: 'checkToxicity',
+    title: 'Safety (Toxicity)',
+    description: 'Detect harmful or inappropriate language',
+  },
+  {
+    key: 'hallucination',
+    flag: 'checkHallucination',
+    title: 'Hallucination Risk',
+    description: 'Check for fabricated or unverified information',
+  },
+];
+
+type CriteriaTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  value: EvaluationCriteria;
+};
+
+const CRITERIA_TEMPLATES: CriteriaTemplate[] = [
+  {
+    id: 'balanced-quality',
+    name: 'Balanced Quality',
+    description: 'Accuracy, relevance, coherence, completeness (default set).',
+    value: mergeWithBaseCriteria({}),
+  },
+  {
+    id: 'factual-safety',
+    name: 'Factual & Safety',
+    description: 'Accuracy + hallucination & toxicity guardrails.',
+    value: mergeWithBaseCriteria({
+      checkRelevance: false,
+      checkCoherence: false,
+      checkCompleteness: true,
+      checkToxicity: true,
+      checkHallucination: true,
+    }),
+  },
+  {
+    id: 'instruction-compliance',
+    name: 'Instruction Compliance',
+    description:
+      'Relevance, coherence, completeness – focus on following prompts.',
+    value: mergeWithBaseCriteria({
+      checkAccuracy: false,
+      checkRelevance: true,
+      checkCoherence: true,
+      checkCompleteness: true,
+      checkToxicity: false,
+      checkHallucination: false,
+    }),
+  },
+];
+
+const SEMANTIC_ONLY_CRITERIA: EvaluationCriteria = mergeWithBaseCriteria({
+  checkRelevance: false,
+  checkCoherence: false,
+  checkCompleteness: false,
+  checkToxicity: false,
+  checkHallucination: false,
+});
 
 const toPercentageDisplay = (score: number | null | undefined) => {
   if (score === null || score === undefined || Number.isNaN(score)) {
@@ -37,17 +200,86 @@ export default function AutoEvaluatePage() {
   const [selectedDataset, setSelectedDataset] = useState<string>('');
   const [selectedChatbot, setSelectedChatbot] = useState<string>('');
   const [selectedEvaluator, setSelectedEvaluator] = useState<string>('gpt-4');
+  const [lastLLMEvaluator, setLastLLMEvaluator] = useState<string>('gpt-4');
+  const [evaluationMode, setEvaluationMode] = useState<'semantic' | 'criteria'>(
+    'semantic'
+  );
   const [criteria, setCriteria] = useState<EvaluationCriteria>({
-    checkAccuracy: true,
-    checkRelevance: true,
-    checkCoherence: true,
-    checkCompleteness: true,
-    checkToxicity: false,
-    checkHallucination: false,
+    ...BASE_CRITERIA_STATE,
   });
+
+  const clampScore = (value: number) => Math.min(5, Math.max(1, value));
+
+  const normalizeCriteria = (input: EvaluationCriteria): EvaluationCriteria => {
+    const normalized: EvaluationCriteria = {
+      ...BASE_CRITERIA_STATE,
+      ...(input ?? {}),
+    };
+    (
+      [
+        'accuracy',
+        'relevance',
+        'coherence',
+        'completeness',
+        'toxicity',
+        'hallucination',
+      ] as MetricKey[]
+    ).forEach((metric) => {
+      const key = `${metric}Threshold` as keyof EvaluationCriteria;
+      if (typeof normalized[key] !== 'number') {
+        (normalized[key] as number | undefined) =
+          DEFAULT_CRITERIA_THRESHOLDS[metric];
+      }
+    });
+    if (typeof normalized.overallThreshold !== 'number') {
+      normalized.overallThreshold = DEFAULT_OVERALL_THRESHOLD;
+    }
+    return normalized;
+  };
+
+  const getThresholdValue = (metric: MetricKey, value?: number): number => {
+    if (typeof value === 'number') return value;
+    return DEFAULT_CRITERIA_THRESHOLDS[metric];
+  };
+
+  const handleThresholdChange = (metric: MetricKey, value: number) => {
+    const fallback = DEFAULT_CRITERIA_THRESHOLDS[metric];
+    const clamped = clampScore(Number.isNaN(value) ? fallback : value);
+    setCriteria((prev) => ({
+      ...prev,
+      [`${metric}Threshold`]: clamped,
+    }));
+  };
+
+  const handleOverallThresholdChange = (value: number) => {
+    const clamped = clampScore(
+      Number.isNaN(value) ? DEFAULT_OVERALL_THRESHOLD : value
+    );
+    setCriteria((prev) => ({
+      ...prev,
+      overallThreshold: clamped,
+    }));
+  };
+
+  const applyTemplate = (template: EvaluationCriteria) => {
+    setCriteria(normalizeCriteria(template));
+  };
+
+  const [history, setHistory] = useState<AutoEvalHistoryEntry[]>([]);
+  const [pendingRerunConfig, setPendingRerunConfig] =
+    useState<RerunConfig | null>(null);
+  const [autoRerunTriggered, setAutoRerunTriggered] = useState(false);
+  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
 
   const [evaluating, setEvaluating] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [progressDetail, setProgressDetail] = useState<{
+    current: number;
+    total: number;
+    question: string;
+    expectedAnswer: string;
+    actualAnswer: string;
+  } | null>(null);
   const [results, setResults] = useState<AutoEvaluationResult[]>([]);
   const [showResults, setShowResults] = useState(false);
 
@@ -100,7 +332,77 @@ export default function AutoEvaluatePage() {
 
   useEffect(() => {
     setDatasets(DatasetStorage.getAll() as TestDataset[]);
+    setHistory(AutoEvalHistoryStorage.getAll() as AutoEvalHistoryEntry[]);
   }, []);
+
+  useEffect(() => {
+    if (datasets.length === 0) return;
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('auto_eval_rerun_config');
+    if (!stored) return;
+    window.localStorage.removeItem('auto_eval_rerun_config');
+    try {
+      const config: RerunConfig = JSON.parse(stored);
+      if (config.datasetId) {
+        setSelectedDataset(config.datasetId);
+      }
+      if (config.chatbotId) {
+        setSelectedChatbot(config.chatbotId);
+      }
+      setEvaluationMode(config.mode || 'semantic');
+      if (config.mode === 'criteria' && config.criteria) {
+        setCriteria(normalizeCriteria(config.criteria));
+        if (config.evaluator) {
+          setSelectedEvaluator(config.evaluator);
+          setLastLLMEvaluator(config.evaluator);
+        }
+      } else {
+        if (config.evaluator) {
+          setLastLLMEvaluator(config.evaluator);
+        }
+        setSelectedEvaluator('embedding');
+      }
+      setActiveCampaignId(config.campaignId ?? null);
+      setPendingRerunConfig(config);
+    } catch (error) {
+      console.error('Failed to parse rerun config', error);
+    }
+  }, [datasets.length]);
+
+  useEffect(() => {
+    if (!pendingRerunConfig) return;
+    if (autoRerunTriggered) return;
+    if (!selectedDataset || !selectedChatbot) return;
+    if (pendingRerunConfig.datasetId !== selectedDataset) return;
+    if (pendingRerunConfig.chatbotId !== selectedChatbot) return;
+    if (evaluating) return;
+    setAutoRerunTriggered(true);
+    setPendingRerunConfig(null);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleStartEvaluation();
+  }, [
+    pendingRerunConfig,
+    selectedDataset,
+    selectedChatbot,
+    evaluating,
+    autoRerunTriggered,
+  ]);
+
+  useEffect(() => {
+    if (evaluationMode === 'semantic') {
+      if (selectedEvaluator !== 'embedding') {
+        if (selectedEvaluator) {
+          setLastLLMEvaluator(selectedEvaluator);
+        }
+        setSelectedEvaluator('embedding');
+      }
+    } else if (evaluationMode === 'criteria') {
+      if (selectedEvaluator === 'embedding') {
+        setSelectedEvaluator(lastLLMEvaluator || 'gpt-4');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evaluationMode]);
 
   const generateMockAnswer = (expectedAnswer: string): string => {
     // Mock: generate slightly varied answers to simulate chatbot responses
@@ -116,14 +418,22 @@ export default function AutoEvaluatePage() {
   };
 
   const handleStartEvaluation = async () => {
+    const campaignIdForRun = activeCampaignId;
     const dataset = datasets.find((d) => d.id === selectedDataset);
     if (!dataset || !dataset.items || dataset.items.length === 0) {
       alert('Please select a dataset with test items!');
       return;
     }
 
+    const appliedCriteria = normalizeCriteria(
+      evaluationMode === 'semantic'
+        ? { ...SEMANTIC_ONLY_CRITERIA }
+        : { ...criteria }
+    );
+
     setEvaluating(true);
     setProgress({ current: 0, total: dataset.items.length });
+    setProgressDetail(null);
     setResults([]);
     setShowResults(false);
 
@@ -138,11 +448,65 @@ export default function AutoEvaluatePage() {
       // Run batch evaluation
       const evaluationResults = await batchEvaluate(
         itemsToEvaluate,
-        criteria,
-        (current, total) => {
+        appliedCriteria,
+        (current, total, item) => {
           setProgress({ current, total });
+          setProgressDetail({
+            current,
+            total,
+            question: item.question,
+            expectedAnswer: item.expectedAnswer,
+            actualAnswer: item.actualAnswer,
+          });
         }
       );
+
+      const summaryData = getEvaluationSummary(evaluationResults);
+      const datasetName = dataset.name;
+      const chatbotName =
+        mockChatbots.find((bot) => bot.id === selectedChatbot)?.name ||
+        selectedChatbot ||
+        'Unknown Bot';
+
+      const entry: AutoEvalHistoryEntry = {
+        id: `hist_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        datasetId: dataset.id,
+        datasetName,
+        chatbotId: selectedChatbot,
+        chatbotName,
+        evaluator: selectedEvaluator,
+        mode: evaluationMode,
+        totalTests: summaryData.totalTests,
+        passRate: summaryData.passRate ?? 0,
+        avgScore: summaryData.averageScore ?? 0,
+        criteria: appliedCriteria,
+        results: evaluationResults,
+        campaignId: campaignIdForRun ?? undefined,
+      };
+
+      AutoEvalHistoryStorage.add(entry);
+      setHistory((prev) => [entry, ...prev]);
+
+      if (entry.campaignId) {
+        const resultsForCampaign = {
+          totalTests: summaryData.totalTests,
+          passedTests: summaryData.passed,
+          failedTests: summaryData.failed,
+          passRate: summaryData.passRate ?? 0,
+          avgAccuracy: entry.avgScore,
+          avgResponseTime: 0,
+          avgQualityScore: entry.avgScore,
+          taskCompletionRate: summaryData.passRate ?? 0,
+          errorRate: Math.max(0, 100 - (summaryData.passRate ?? 0)),
+        };
+        CampaignStorage.update(entry.campaignId, {
+          status: 'completed',
+          completedAt: new Date().toISOString(),
+          progress: 100,
+          results: resultsForCampaign,
+        });
+      }
 
       setResults(evaluationResults);
       setShowResults(true);
@@ -150,6 +514,9 @@ export default function AutoEvaluatePage() {
       alert('Evaluation failed: ' + error);
     } finally {
       setEvaluating(false);
+      setProgressDetail(null);
+      setProgress({ current: 0, total: 0 });
+      setActiveCampaignId(null);
     }
   };
 
@@ -294,182 +661,295 @@ export default function AutoEvaluatePage() {
 
           <Card title='Step 2: Configure Evaluator Model'>
             <div className='space-y-3'>
-              {evaluatorModels.map((model) => (
+              {evaluatorModels.map((model) => {
+                const isSemanticMode = evaluationMode === 'semantic';
+                const isDisabled = isSemanticMode && model.id !== 'embedding';
+                const isSelected = selectedEvaluator === model.id;
+                return (
+                  <label
+                    key={model.id}
+                    className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-300'
+                    } ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    <input
+                      type='radio'
+                      name='evaluator'
+                      value={model.id}
+                      checked={isSelected}
+                      onChange={(e) => {
+                        setSelectedEvaluator(e.target.value);
+                        if (e.target.value !== 'embedding') {
+                          setLastLLMEvaluator(e.target.value);
+                        }
+                      }}
+                      className='w-5 h-5 mt-1'
+                      disabled={evaluating || isDisabled}
+                    />
+                    <div className='flex-1'>
+                      <div className='font-bold text-gray-900'>
+                        {model.name}
+                      </div>
+                      <div className='text-sm text-gray-700 mb-2'>
+                        {model.description}
+                      </div>
+                      <div className='flex flex-wrap gap-2 mb-2'>
+                        {model.features.map((feature, idx) => (
+                          <span
+                            key={idx}
+                            className='text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded'
+                          >
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                      <div className='flex justify-between text-xs text-gray-600'>
+                        <span>⏱️ {model.speed}</span>
+                        <span className='font-semibold'>
+                          💰 Est. cost: {model.cost}
+                        </span>
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </Card>
+
+          <Card title='Step 3: Choose Evaluation Mode'>
+            <div className='space-y-6'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
                 <label
-                  key={model.id}
-                  className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedEvaluator === model.id
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    evaluationMode === 'semantic'
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-blue-300'
                   }`}
                 >
-                  <input
-                    type='radio'
-                    name='evaluator'
-                    value={model.id}
-                    checked={selectedEvaluator === model.id}
-                    onChange={(e) => setSelectedEvaluator(e.target.value)}
-                    className='w-5 h-5 mt-1'
-                    disabled={evaluating}
-                  />
-                  <div className='flex-1'>
-                    <div className='font-bold text-gray-900'>{model.name}</div>
-                    <div className='text-sm text-gray-700 mb-2'>
-                      {model.description}
-                    </div>
-                    <div className='flex flex-wrap gap-2 mb-2'>
-                      {model.features.map((feature, idx) => (
-                        <span
-                          key={idx}
-                          className='text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded'
-                        >
-                          {feature}
-                        </span>
-                      ))}
-                    </div>
-                    <div className='flex justify-between text-xs text-gray-600'>
-                      <span>⏱️ {model.speed}</span>
-                      <span className='font-semibold'>
-                        💰 Est. cost: {model.cost}
-                      </span>
+                  <div className='flex items-start gap-3'>
+                    <input
+                      type='radio'
+                      name='evaluation-mode'
+                      value='semantic'
+                      checked={evaluationMode === 'semantic'}
+                      onChange={() => setEvaluationMode('semantic')}
+                      className='w-5 h-5 mt-1'
+                      disabled={evaluating}
+                    />
+                    <div>
+                      <div className='font-bold text-gray-900 mb-1'>
+                        ⚡ Quick Semantic Compare
+                      </div>
+                      <p className='text-sm text-gray-700'>
+                        Run embedding similarity against ground truth. Fast,
+                        cheap, and requires no extra configuration.
+                      </p>
+                      <div className='mt-2 flex flex-wrap gap-2'>
+                        <Badge variant='info' size='sm'>
+                          Embedding-based
+                        </Badge>
+                        <Badge variant='success' size='sm'>
+                          Lowest cost
+                        </Badge>
+                        <Badge variant='neutral' size='sm'>
+                          Accuracy only
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 </label>
-              ))}
-            </div>
-          </Card>
 
-          <Card title='Step 3: Evaluation Criteria (Optional)'>
-            <div className='space-y-3'>
-              <label className='flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer'>
-                <input
-                  type='checkbox'
-                  className='w-5 h-5'
-                  checked={criteria.checkAccuracy}
-                  onChange={(e) =>
-                    setCriteria({
-                      ...criteria,
-                      checkAccuracy: e.target.checked,
-                    })
-                  }
-                  disabled={evaluating}
-                />
-                <div>
-                  <div className='font-semibold text-gray-900'>Accuracy</div>
-                  <div className='text-sm text-gray-700'>
-                    Compare actual answer with expected answer
+                <label
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    evaluationMode === 'criteria'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  <div className='flex items-start gap-3'>
+                    <input
+                      type='radio'
+                      name='evaluation-mode'
+                      value='criteria'
+                      checked={evaluationMode === 'criteria'}
+                      onChange={() => setEvaluationMode('criteria')}
+                      className='w-5 h-5 mt-1'
+                      disabled={evaluating}
+                    />
+                    <div>
+                      <div className='font-bold text-gray-900 mb-1'>
+                        🧠 LLM Criteria Compare
+                      </div>
+                      <p className='text-sm text-gray-700'>
+                        Uses evaluator LLM to score multiple criteria and spot
+                        issues.
+                      </p>
+                      <div className='mt-2 flex flex-wrap gap-2'>
+                        <Badge variant='info' size='sm'>
+                          LLM required
+                        </Badge>
+                        <Badge variant='warning' size='sm'>
+                          Configurable
+                        </Badge>
+                        <Badge variant='neutral' size='sm'>
+                          Richer insights
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {evaluationMode === 'semantic' ? (
+                <div className='p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700'>
+                  ⚡ Semantic compare selected — we will compute embedding
+                  similarity between actual and expected answers and report an
+                  accuracy score.
+                </div>
+              ) : (
+                <div className='space-y-3'>
+                  <p className='text-sm text-gray-700'>
+                    Select the criteria you want the evaluator LLM to score:
+                  </p>
+
+                  <div className='grid gap-3 sm:grid-cols-3'>
+                    {CRITERIA_TEMPLATES.map((template) => {
+                      const isActive = CRITERIA_FLAG_KEYS.every(
+                        (flag) => criteria[flag] === template.value[flag]
+                      );
+                      return (
+                        <button
+                          key={template.id}
+                          type='button'
+                          onClick={() => applyTemplate(template.value)}
+                          disabled={evaluating}
+                          className={`text-left border rounded-lg p-3 transition ${
+                            isActive
+                              ? 'border-blue-500 bg-blue-50 shadow-sm'
+                              : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50/50'
+                          }`}
+                        >
+                          <div className='font-semibold text-gray-900'>
+                            {template.name}
+                          </div>
+                          <div className='text-xs text-gray-600 mt-1'>
+                            {template.description}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className='flex flex-wrap items-center gap-3 p-3 border border-dashed border-purple-300 rounded-lg bg-purple-50/40'>
+                    <span className='text-sm font-medium text-purple-900'>
+                      Overall pass threshold
+                    </span>
+                    <input
+                      type='number'
+                      min='1'
+                      max='5'
+                      step='0.1'
+                      value={
+                        typeof criteria.overallThreshold === 'number'
+                          ? criteria.overallThreshold
+                          : DEFAULT_OVERALL_THRESHOLD
+                      }
+                      onChange={(e) =>
+                        handleOverallThresholdChange(parseFloat(e.target.value))
+                      }
+                      disabled={evaluating}
+                      className='w-20 px-2 py-1 border border-purple-300 rounded text-xs'
+                    />
+                    <span className='text-xs text-purple-700'>
+                      Score out of 5 required for a response to pass overall
+                    </span>
+                  </div>
+
+                  <div className='space-y-3'>
+                    {CRITERIA_CONTROL_CONFIG.map(
+                      ({ key, flag, title, description }) => {
+                        const checked = Boolean(criteria[flag]);
+                        const thresholdKey = `${key}Threshold`;
+                        const criteriaThreshold = criteria[
+                          thresholdKey as keyof EvaluationCriteria
+                        ];
+                        const thresholdValue = getThresholdValue(
+                          key,
+                          typeof criteriaThreshold === 'number'
+                            ? criteriaThreshold
+                            : undefined
+                        );
+                        return (
+                          <label
+                            key={key}
+                            className='flex gap-3 p-3 hover:bg-gray-50 rounded border border-transparent transition cursor-pointer'
+                          >
+                            <input
+                              type='checkbox'
+                              className='w-5 h-5 mt-1 flex-shrink-0'
+                              checked={checked}
+                              onChange={(e) =>
+                                setCriteria((prev) => {
+                                  const keyName =
+                                    `${key}Threshold` as keyof EvaluationCriteria;
+                                  let next: EvaluationCriteria = {
+                                    ...prev,
+                                    [flag]: e.target.checked,
+                                  };
+                                  if (e.target.checked) {
+                                    const currentThreshold = next[keyName];
+                                    if (typeof currentThreshold !== 'number') {
+                                      next = {
+                                        ...next,
+                                        [keyName]:
+                                          DEFAULT_CRITERIA_THRESHOLDS[key],
+                                      };
+                                    }
+                                  }
+                                  return next;
+                                })
+                              }
+                              disabled={evaluating}
+                            />
+                            <div className='flex-1'>
+                              <div className='flex items-center justify-between gap-3'>
+                                <div>
+                                  <div className='font-semibold text-gray-900'>
+                                    {title}
+                                  </div>
+                                  <div className='text-sm text-gray-700'>
+                                    {description}
+                                  </div>
+                                </div>
+                                <div className='flex items-center gap-2 text-xs text-gray-600'>
+                                  <span>Accept score ≥</span>
+                                  <input
+                                    type='number'
+                                    min='1'
+                                    max='5'
+                                    step='0.1'
+                                    value={thresholdValue}
+                                    onChange={(e) =>
+                                      handleThresholdChange(
+                                        key,
+                                        parseFloat(e.target.value)
+                                      )
+                                    }
+                                    disabled={!checked || evaluating}
+                                    className='w-16 px-2 py-1 border border-gray-300 rounded text-xs'
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      }
+                    )}
                   </div>
                 </div>
-              </label>
-
-              <label className='flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer'>
-                <input
-                  type='checkbox'
-                  className='w-5 h-5'
-                  checked={criteria.checkRelevance}
-                  onChange={(e) =>
-                    setCriteria({
-                      ...criteria,
-                      checkRelevance: e.target.checked,
-                    })
-                  }
-                  disabled={evaluating}
-                />
-                <div>
-                  <div className='font-semibold text-gray-900'>Relevance</div>
-                  <div className='text-sm text-gray-700'>
-                    Check if answer is relevant to the question
-                  </div>
-                </div>
-              </label>
-
-              <label className='flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer'>
-                <input
-                  type='checkbox'
-                  className='w-5 h-5'
-                  checked={criteria.checkCoherence}
-                  onChange={(e) =>
-                    setCriteria({
-                      ...criteria,
-                      checkCoherence: e.target.checked,
-                    })
-                  }
-                  disabled={evaluating}
-                />
-                <div>
-                  <div className='font-semibold text-gray-900'>Coherence</div>
-                  <div className='text-sm text-gray-700'>
-                    Evaluate logical flow and clarity
-                  </div>
-                </div>
-              </label>
-
-              <label className='flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer'>
-                <input
-                  type='checkbox'
-                  className='w-5 h-5'
-                  checked={criteria.checkCompleteness}
-                  onChange={(e) =>
-                    setCriteria({
-                      ...criteria,
-                      checkCompleteness: e.target.checked,
-                    })
-                  }
-                  disabled={evaluating}
-                />
-                <div>
-                  <div className='font-semibold text-gray-900'>
-                    Completeness
-                  </div>
-                  <div className='text-sm text-gray-700'>
-                    Check if answer covers all necessary information
-                  </div>
-                </div>
-              </label>
-
-              <label className='flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer'>
-                <input
-                  type='checkbox'
-                  className='w-5 h-5'
-                  checked={criteria.checkToxicity}
-                  onChange={(e) =>
-                    setCriteria({
-                      ...criteria,
-                      checkToxicity: e.target.checked,
-                    })
-                  }
-                  disabled={evaluating}
-                />
-                <div>
-                  <div className='font-semibold text-gray-900'>Toxicity</div>
-                  <div className='text-sm text-gray-700'>
-                    Detect harmful or inappropriate language
-                  </div>
-                </div>
-              </label>
-
-              <label className='flex items-center gap-3 p-3 hover:bg-gray-50 rounded cursor-pointer'>
-                <input
-                  type='checkbox'
-                  className='w-5 h-5'
-                  checked={criteria.checkHallucination}
-                  onChange={(e) =>
-                    setCriteria({
-                      ...criteria,
-                      checkHallucination: e.target.checked,
-                    })
-                  }
-                  disabled={evaluating}
-                />
-                <div>
-                  <div className='font-semibold text-gray-900'>
-                    Hallucination
-                  </div>
-                  <div className='text-sm text-gray-700'>
-                    Check for fabricated or unverified information
-                  </div>
-                </div>
-              </label>
+              )}
             </div>
           </Card>
 
@@ -485,6 +965,16 @@ export default function AutoEvaluatePage() {
                   ⚠️ Please select a chatbot to evaluate
                 </div>
               )}
+              {evaluationMode === 'semantic' ? (
+                <div className='p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800'>
+                  ⚡ Semantic compare enabled — embedding similarity only.
+                </div>
+              ) : (
+                <div className='p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-800'>
+                  🧠 LLM criteria evaluation enabled — make sure evaluator model
+                  and criteria are configured.
+                </div>
+              )}
               <Button
                 className='w-full'
                 size='lg'
@@ -497,6 +987,69 @@ export default function AutoEvaluatePage() {
               </Button>
             </div>
           </Card>
+
+          {evaluating && (
+            <Card title='Evaluation In Progress'>
+              <div className='space-y-4'>
+                <div>
+                  <div className='text-sm font-semibold text-gray-800 mb-1'>
+                    Progress
+                  </div>
+                  <div className='w-full bg-gray-200 h-2 rounded-full'>
+                    <div
+                      className='bg-blue-500 h-2 rounded-full transition-all'
+                      style={{
+                        width:
+                          progress.total > 0
+                            ? `${Math.min(
+                                100,
+                                Math.round(
+                                  (progress.current / progress.total) * 100
+                                )
+                              )}%`
+                            : '0%',
+                      }}
+                    ></div>
+                  </div>
+                  <div className='text-xs text-gray-600 mt-1'>
+                    {progress.current} / {progress.total} items
+                  </div>
+                </div>
+
+                {progressDetail && (
+                  <div className='p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-3'>
+                    <div className='text-xs text-gray-600'>
+                      Item {progressDetail.current} of {progressDetail.total}
+                    </div>
+                    <div>
+                      <div className='text-sm font-semibold text-gray-900'>
+                        Question
+                      </div>
+                      <p className='text-sm text-gray-800 whitespace-pre-wrap mb-0'>
+                        {progressDetail.question || '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <div className='text-sm font-semibold text-gray-900'>
+                        Expected Answer
+                      </div>
+                      <p className='text-sm text-gray-700 whitespace-pre-wrap mb-0'>
+                        {progressDetail.expectedAnswer || '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <div className='text-sm font-semibold text-gray-900'>
+                        Chatbot Response (sampled)
+                      </div>
+                      <p className='text-sm text-gray-700 whitespace-pre-wrap mb-0'>
+                        {progressDetail.actualAnswer || '—'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
         </>
       )}
 
@@ -624,7 +1177,11 @@ export default function AutoEvaluatePage() {
                 const issueEntries = Object.entries(
                   result.criteriaResults || {}
                 ).filter(
-                  ([, detail]) => detail.score < 4 && Boolean(detail.reason)
+                  ([, detail]) =>
+                    detail.score <
+                      (typeof detail.threshold === 'number'
+                        ? detail.threshold
+                        : 4) && Boolean(detail.reason)
                 );
 
                 return (
@@ -677,16 +1234,36 @@ export default function AutoEvaluatePage() {
                     {/* Detailed scores */}
                     <div className='grid grid-cols-2 md:grid-cols-3 gap-2 mb-3'>
                       {Object.entries(result.criteriaResults || {}).map(
-                        ([key, detail]) => (
-                          <div key={key} className='text-xs'>
-                            <span className='text-gray-700'>
-                              {CRITERION_LABELS[key] ?? key}:
-                            </span>{' '}
-                            <span className='font-semibold text-gray-900'>
-                              {toPercentageDisplay(detail.score)}
-                            </span>
-                          </div>
-                        )
+                        ([key, detail]) => {
+                          const threshold =
+                            typeof detail.threshold === 'number'
+                              ? detail.threshold
+                              : undefined;
+                          const passed = detail.passed !== false;
+                          return (
+                            <div key={key} className='text-xs'>
+                              <div className='flex items-center justify-between gap-2'>
+                                <span className='text-gray-700'>
+                                  {CRITERION_LABELS[key] ?? key}
+                                </span>
+                                <div className='flex items-center gap-1'>
+                                  {threshold !== undefined && (
+                                    <Badge
+                                      variant={passed ? 'success' : 'error'}
+                                      size='sm'
+                                    >
+                                      {passed ? '≥' : '<'}{' '}
+                                      {threshold.toFixed(1)}
+                                    </Badge>
+                                  )}
+                                  <span className='font-semibold text-gray-900'>
+                                    {toPercentageDisplay(detail.score)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
                       )}
                     </div>
 
@@ -705,14 +1282,45 @@ export default function AutoEvaluatePage() {
 
                     <div className='p-3 bg-white border border-gray-300 rounded text-xs text-gray-800 space-y-2'>
                       {Object.entries(result.criteriaResults || {}).map(
-                        ([key, detail]) => (
-                          <div key={key}>
-                            <div className='font-semibold text-gray-900'>
-                              {CRITERION_LABELS[key] ?? key}
+                        ([key, detail]) => {
+                          const threshold =
+                            typeof detail.threshold === 'number'
+                              ? detail.threshold
+                              : undefined;
+                          const passed = detail.passed !== false;
+                          return (
+                            <div key={key}>
+                              <div className='flex items-center justify-between'>
+                                <div className='font-semibold text-gray-900'>
+                                  {CRITERION_LABELS[key] ?? key}
+                                </div>
+                                <div className='text-xs text-gray-600'>
+                                  Score:{' '}
+                                  <span className='font-semibold text-gray-900'>
+                                    {toPercentageDisplay(detail.score)}
+                                  </span>
+                                  {threshold !== undefined && (
+                                    <span className='ml-2'>
+                                      (min {threshold.toFixed(1)})
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div
+                                className={`${
+                                  passed ? 'text-gray-700' : 'text-red-600'
+                                }`}
+                              >
+                                {detail.reason}
+                              </div>
+                              {!passed && (
+                                <div className='text-xs text-red-600 font-semibold mt-1'>
+                                  Below threshold — flagged for review.
+                                </div>
+                              )}
                             </div>
-                            <div>{detail.reason}</div>
-                          </div>
-                        )
+                          );
+                        }
                       )}
                     </div>
                   </div>
@@ -722,6 +1330,52 @@ export default function AutoEvaluatePage() {
           </Card>
         </>
       )}
+
+      <Card title='Evaluation History'>
+        {history.length === 0 ? (
+          <p className='text-sm text-gray-600 m-0'>
+            No evaluation history yet. Run an evaluation to see it here.
+          </p>
+        ) : (
+          <div className='space-y-3'>
+            {history.map((entry) => (
+              <div
+                key={entry.id}
+                className='p-4 border border-gray-200 rounded-lg bg-white flex flex-col md:flex-row md:items-center md:justify-between gap-3'
+              >
+                <div>
+                  <div className='font-semibold text-gray-900'>
+                    {entry.datasetName}
+                  </div>
+                  <div className='text-sm text-gray-600'>
+                    {entry.chatbotName} ·{' '}
+                    {new Date(entry.timestamp).toLocaleString('vi-VN')}
+                  </div>
+                </div>
+                <div className='flex flex-wrap gap-2 items-center'>
+                  <Badge
+                    variant={entry.mode === 'semantic' ? 'info' : 'warning'}
+                  >
+                    {entry.mode === 'semantic' ? 'Semantic' : 'LLM Criteria'}
+                  </Badge>
+                  <Badge variant='neutral'>Evaluator: {entry.evaluator}</Badge>
+                  <Badge variant='success'>Pass Rate: {entry.passRate}%</Badge>
+                  <Badge variant='neutral'>Avg Score: {entry.avgScore}</Badge>
+                  <span className='text-sm text-gray-600'>
+                    Tests: {entry.totalTests}
+                  </span>
+                  <Link
+                    href={`/auto-evaluate/history/${entry.id}`}
+                    className='text-sm text-blue-600 hover:underline'
+                  >
+                    View details →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

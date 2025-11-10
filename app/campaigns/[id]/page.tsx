@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Card,
@@ -27,8 +27,79 @@ import {
 import { CampaignStorage, ChatbotStorage } from '@/lib/storage';
 import type { Campaign, Chatbot } from '@/lib/types';
 import Link from 'next/link';
+import {
+  DEFAULT_CRITERIA_THRESHOLDS,
+  DEFAULT_OVERALL_THRESHOLD,
+  type EvaluationCriteria,
+} from '@/lib/mockLLMEvaluator';
 
 const { Title, Paragraph, Text } = Typography;
+
+const SEMANTIC_ONLY_CRITERIA: EvaluationCriteria = {
+  checkAccuracy: true,
+  accuracyThreshold: DEFAULT_CRITERIA_THRESHOLDS.accuracy,
+  checkRelevance: false,
+  relevanceThreshold: DEFAULT_CRITERIA_THRESHOLDS.relevance,
+  checkCoherence: false,
+  coherenceThreshold: DEFAULT_CRITERIA_THRESHOLDS.coherence,
+  checkCompleteness: false,
+  completenessThreshold: DEFAULT_CRITERIA_THRESHOLDS.completeness,
+  checkToxicity: false,
+  toxicityThreshold: DEFAULT_CRITERIA_THRESHOLDS.toxicity,
+  checkHallucination: false,
+  hallucinationThreshold: DEFAULT_CRITERIA_THRESHOLDS.hallucination,
+  overallThreshold: DEFAULT_OVERALL_THRESHOLD,
+};
+
+type MetricKey =
+  | 'accuracy'
+  | 'relevance'
+  | 'coherence'
+  | 'completeness'
+  | 'toxicity'
+  | 'hallucination';
+
+const METRIC_LABELS: Record<MetricKey, string> = {
+  accuracy: 'Factuality (Accuracy)',
+  relevance: 'Task Fulfillment (Relevance)',
+  coherence: 'Clarity & Coherence',
+  completeness: 'Completeness',
+  toxicity: 'Safety (Toxicity)',
+  hallucination: 'Hallucination Risk',
+};
+
+const CRITERIA_DISPLAY_CONFIG: Array<{
+  key: MetricKey;
+  flag: keyof EvaluationCriteria;
+  thresholdKey: keyof EvaluationCriteria;
+}> = [
+  { key: 'accuracy', flag: 'checkAccuracy', thresholdKey: 'accuracyThreshold' },
+  {
+    key: 'relevance',
+    flag: 'checkRelevance',
+    thresholdKey: 'relevanceThreshold',
+  },
+  {
+    key: 'coherence',
+    flag: 'checkCoherence',
+    thresholdKey: 'coherenceThreshold',
+  },
+  {
+    key: 'completeness',
+    flag: 'checkCompleteness',
+    thresholdKey: 'completenessThreshold',
+  },
+  {
+    key: 'toxicity',
+    flag: 'checkToxicity',
+    thresholdKey: 'toxicityThreshold',
+  },
+  {
+    key: 'hallucination',
+    flag: 'checkHallucination',
+    thresholdKey: 'hallucinationThreshold',
+  },
+];
 
 export default function CampaignDetailPage() {
   const params = useParams();
@@ -46,8 +117,10 @@ export default function CampaignDetailPage() {
       return;
     }
 
-    setCampaign(campaignData);
-    setChatbots(ChatbotStorage.getAll() as Chatbot[]);
+    startTransition(() => {
+      setCampaign(campaignData);
+      setChatbots(ChatbotStorage.getAll() as Chatbot[]);
+    });
   }, [params.id, router]);
 
   if (!campaign) {
@@ -55,6 +128,11 @@ export default function CampaignDetailPage() {
       <div style={{ textAlign: 'center', padding: '60px 0' }}>Loading...</div>
     );
   }
+
+  const appliedCriteria = buildCriteriaFromCampaign(campaign);
+  const enabledCriteria = CRITERIA_DISPLAY_CONFIG.filter(({ flag }) =>
+    Boolean(appliedCriteria[flag])
+  );
 
   const getStatusTag = (status: Campaign['status']) => {
     const colors: Record<Campaign['status'], string> = {
@@ -71,6 +149,77 @@ export default function CampaignDetailPage() {
     return campaign.chatbotIds
       .map((id) => chatbots.find((cb) => cb.id === id)?.name || 'Unknown')
       .join(', ');
+  };
+
+  function buildCriteriaFromCampaign(camp: Campaign): EvaluationCriteria {
+    const metrics = camp.metrics || [];
+    const thresholds = camp.metricThresholds || {};
+    const getThreshold = (metric: keyof typeof DEFAULT_CRITERIA_THRESHOLDS) =>
+      (thresholds as Record<string, number | undefined>)[metric] ??
+      DEFAULT_CRITERIA_THRESHOLDS[metric];
+
+    return {
+      checkAccuracy: metrics.includes('accuracy') || metrics.length === 0,
+      accuracyThreshold: getThreshold('accuracy'),
+      checkRelevance: metrics.includes('relevance'),
+      relevanceThreshold: getThreshold('relevance'),
+      checkCoherence: metrics.includes('coherence'),
+      coherenceThreshold: getThreshold('coherence'),
+      checkCompleteness: metrics.includes('completeness'),
+      completenessThreshold: getThreshold('completeness'),
+      checkToxicity: metrics.includes('toxicity'),
+      toxicityThreshold: getThreshold('toxicity'),
+      checkHallucination: metrics.includes('hallucination'),
+      hallucinationThreshold: getThreshold('hallucination'),
+      overallThreshold:
+        typeof camp.overallThreshold === 'number'
+          ? camp.overallThreshold
+          : DEFAULT_OVERALL_THRESHOLD,
+    };
+  }
+
+  const handleStartCampaign = () => {
+    if (!campaign) return;
+    if (!campaign.datasetId) {
+      message.error('Campaign does not have an associated dataset.');
+      return;
+    }
+
+    const chatbotId = campaign.chatbotIds?.[0];
+    if (!chatbotId) {
+      message.error('Campaign does not have any chatbot selected.');
+      return;
+    }
+
+    const mode: 'semantic' | 'criteria' = campaign.evaluationMode ?? 'criteria';
+
+    CampaignStorage.update(campaign.id, {
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      progress: 0,
+    });
+    const updated = CampaignStorage.getById(campaign.id) as Campaign;
+    setCampaign(updated);
+
+    if (typeof window !== 'undefined') {
+      const rerunConfig = {
+        datasetId: campaign.datasetId,
+        chatbotId,
+        evaluator: mode === 'semantic' ? 'embedding' : 'gpt-4',
+        mode,
+        criteria:
+          mode === 'semantic'
+            ? { ...SEMANTIC_ONLY_CRITERIA }
+            : buildCriteriaFromCampaign(campaign),
+        campaignId: campaign.id,
+      };
+      window.localStorage.setItem(
+        'auto_eval_rerun_config',
+        JSON.stringify(rerunConfig)
+      );
+    }
+
+    router.push('/auto-evaluate');
   };
 
   return (
@@ -105,9 +254,7 @@ export default function CampaignDetailPage() {
               <Button
                 type='primary'
                 icon={<PlayCircleOutlined />}
-                onClick={() =>
-                  message.info('Feature coming soon: Start campaign')
-                }
+                onClick={handleStartCampaign}
               >
                 Start Campaign
               </Button>
@@ -146,11 +293,55 @@ export default function CampaignDetailPage() {
           <Descriptions.Item label='Evaluation Type'>
             {campaign.evaluationType.join(' + ')}
           </Descriptions.Item>
+          <Descriptions.Item label='Evaluation Mode'>
+            {campaign.evaluationMode === 'criteria'
+              ? 'LLM Criteria Compare'
+              : 'Quick Semantic Compare'}
+          </Descriptions.Item>
+          <Descriptions.Item label='Overall Threshold'>
+            {(
+              appliedCriteria.overallThreshold ?? DEFAULT_OVERALL_THRESHOLD
+            ).toFixed(1)}
+            /5.0
+          </Descriptions.Item>
           <Descriptions.Item label='Created'>
             {new Date(campaign.createdAt).toLocaleDateString()}
           </Descriptions.Item>
           <Descriptions.Item label='Status'>
             {getStatusTag(campaign.status)}
+          </Descriptions.Item>
+          <Descriptions.Item label='Metric Thresholds' span={2}>
+            {enabledCriteria.length === 0 ? (
+              <Text type='secondary'>No metrics configured.</Text>
+            ) : (
+              <div style={{ display: 'grid', rowGap: 4 }}>
+                {enabledCriteria.map(({ key, thresholdKey }) => (
+                  <div
+                    key={key}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                    }}
+                  >
+                    <span>{METRIC_LABELS[key]}</span>
+                    <span style={{ fontWeight: 600 }}>
+                      {(() => {
+                        const rawThreshold = appliedCriteria[thresholdKey] as
+                          | number
+                          | undefined
+                          | boolean;
+                        const value =
+                          typeof rawThreshold === 'number'
+                            ? rawThreshold
+                            : DEFAULT_CRITERIA_THRESHOLDS[key];
+                        return `≥ ${value.toFixed(1)}`;
+                      })()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Descriptions.Item>
         </Descriptions>
       </Card>
