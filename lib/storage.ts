@@ -1,3 +1,5 @@
+'use client';
+
 // LocalStorage utilities
 
 const STORAGE_KEYS = {
@@ -6,6 +8,7 @@ const STORAGE_KEYS = {
   DATASETS: 'datasets',
   EVALUATIONS: 'evaluations',
   AB_TESTS: 'ab_tests',
+  AUTO_EVAL_HISTORY: 'auto_eval_history',
 } as const;
 
 // Generic storage functions
@@ -108,6 +111,15 @@ export const ABTestStorage = {
   delete: (id: string) => deleteFromStorage(STORAGE_KEYS.AB_TESTS, id),
 };
 
+export const AutoEvalHistoryStorage = {
+  getAll: () => getFromStorage(STORAGE_KEYS.AUTO_EVAL_HISTORY) as any[],
+  getById: (id: string) =>
+    getByIdFromStorage(STORAGE_KEYS.AUTO_EVAL_HISTORY, id) as any,
+  add: (entry: any) => addToStorage(STORAGE_KEYS.AUTO_EVAL_HISTORY, entry),
+  delete: (id: string) => deleteFromStorage(STORAGE_KEYS.AUTO_EVAL_HISTORY, id),
+  clear: () => saveToStorage(STORAGE_KEYS.AUTO_EVAL_HISTORY, []),
+};
+
 // Initialize with mock data
 export function initializeMockData() {
   if (typeof window === 'undefined') return;
@@ -157,6 +169,7 @@ export function initializeMockData() {
         datasetId: 'ds_001',
         status: 'completed',
         metrics: ['accuracy', 'taskCompletion', 'responseTime', 'quality'],
+        evaluationMode: 'criteria',
         createdAt: '2024-11-01T00:00:00Z',
         startedAt: '2024-11-01T10:00:00Z',
         completedAt: '2024-11-03T18:00:00Z',
@@ -182,6 +195,7 @@ export function initializeMockData() {
         datasetId: 'ds_002',
         status: 'running',
         metrics: ['accuracy', 'taskCompletion'],
+        evaluationMode: 'semantic',
         createdAt: '2024-11-03T00:00:00Z',
         startedAt: '2024-11-03T12:00:00Z',
         progress: 65,
