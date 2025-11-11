@@ -1,0 +1,18 @@
+[
+  {
+    "question": "What is the standard trial period for new customers?",
+    "expectedAnswer": "The standard trial period is 30 days from the date of account activation.",
+    "category": "Onboarding"
+  },
+  {
+    "question": "How should users reset their account password?",
+    "expectedAnswer": "Users can reset their password by visiting the /forgot-password page and following the instructions sent to their registered email.",
+    "category": "Account"
+  },
+  {
+    "question": "What channels are available for live customer support?",
+    "expectedAnswer": "Live support is available via chat and email from 9am to 6pm Monday through Friday.",
+    "category": "Support"
+  }
+]
+
