@@ -517,30 +517,6 @@ export default function CampaignCreatePage() {
             </Form.Item>
           </Card>
 
-          <Card
-            type='inner'
-            title='Evaluation Mode'
-            style={{ marginBottom: 16 }}
-          >
-            <Form.Item
-              name='evaluationMode'
-              rules={[{ required: true, message: 'Select evaluation mode' }]}
-            >
-              <Radio.Group>
-                <Space direction='vertical'>
-                  <Radio value='semantic'>
-                    <strong>Quick Semantic Compare</strong> – Embedding
-                    similarity only
-                  </Radio>
-                  <Radio value='criteria'>
-                    <strong>LLM Criteria Compare</strong> – Use evaluator LLM to
-                    score multiple criteria
-                  </Radio>
-                </Space>
-              </Radio.Group>
-            </Form.Item>
-          </Card>
-
           <Card type='inner' title='Dataset & Metrics'>
             <Form.Item
               name='datasetId'
@@ -682,6 +658,30 @@ export default function CampaignCreatePage() {
                 message='Semantic compare uses quick embedding similarity. Detailed criteria and thresholds are disabled.'
               />
             )}
+          </Card>
+
+          <Card
+            type='inner'
+            title='Evaluation Mode'
+            style={{ marginBottom: 16 }}
+          >
+            <Form.Item
+              name='evaluationMode'
+              rules={[{ required: true, message: 'Select evaluation mode' }]}
+            >
+              <Radio.Group>
+                <Space direction='vertical'>
+                  <Radio value='semantic'>
+                    <strong>Quick Semantic Compare</strong> – Embedding
+                    similarity only
+                  </Radio>
+                  <Radio value='criteria'>
+                    <strong>LLM Criteria Compare</strong> – Use evaluator LLM to
+                    score multiple criteria
+                  </Radio>
+                </Space>
+              </Radio.Group>
+            </Form.Item>
           </Card>
 
           <Form.Item style={{ marginTop: 24 }}>

@@ -7,7 +7,7 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
     name: 'Accuracy (Độ chính xác)',
     description: 'Thông tin trong câu trả lời có chính xác không?',
     weight: 0.3,
-    scale: '1-5',
+    scale: '0-1',
     enabled: true,
     rubric: [
       {
@@ -43,7 +43,7 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
     name: 'Completeness (Tính đầy đủ)',
     description: 'Câu trả lời có cover tất cả key points cần thiết không?',
     weight: 0.25,
-    scale: '1-5',
+    scale: '0-1',
     enabled: true,
     rubric: [
       {
@@ -79,7 +79,7 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
     name: 'Relevance (Tính liên quan)',
     description: 'Câu trả lời có liên quan trực tiếp đến câu hỏi không?',
     weight: 0.15,
-    scale: '1-5',
+    scale: '0-1',
     enabled: true,
     rubric: [
       {
@@ -114,7 +114,7 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
     name: 'Clarity (Tính rõ ràng)',
     description: 'Câu trả lời có dễ hiểu, ngôn ngữ rõ ràng không?',
     weight: 0.15,
-    scale: '1-5',
+    scale: '0-1',
     enabled: true,
     rubric: [
       {
@@ -149,7 +149,7 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
     name: 'Tone & Style (Giọng điệu)',
     description: 'Giọng điệu có phù hợp với brand và context không?',
     weight: 0.1,
-    scale: '1-5',
+    scale: '0-1',
     enabled: true,
     rubric: [
       {
@@ -185,7 +185,7 @@ export const DEFAULT_EVALUATION_CRITERIA: EvaluationCriterion[] = [
     name: 'Citations & Transparency (Trích dẫn)',
     description: 'Có trích dẫn nguồn hoặc reference khi cần thiết không?',
     weight: 0.05,
-    scale: '1-5',
+    scale: '0-1',
     enabled: true,
     rubric: [
       {
@@ -287,9 +287,3 @@ export const EVALUATOR_MODELS = {
     estimatedTime: '1-2 mins per 100 questions',
   },
 };
-
-
-
-
-
-

@@ -659,66 +659,7 @@ export default function AutoEvaluatePage() {
             </div>
           </Card>
 
-          <Card title='Step 2: Configure Evaluator Model'>
-            <div className='space-y-3'>
-              {evaluatorModels.map((model) => {
-                const isSemanticMode = evaluationMode === 'semantic';
-                const isDisabled = isSemanticMode && model.id !== 'embedding';
-                const isSelected = selectedEvaluator === model.id;
-                return (
-                  <label
-                    key={model.id}
-                    className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300'
-                    } ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
-                    <input
-                      type='radio'
-                      name='evaluator'
-                      value={model.id}
-                      checked={isSelected}
-                      onChange={(e) => {
-                        setSelectedEvaluator(e.target.value);
-                        if (e.target.value !== 'embedding') {
-                          setLastLLMEvaluator(e.target.value);
-                        }
-                      }}
-                      className='w-5 h-5 mt-1'
-                      disabled={evaluating || isDisabled}
-                    />
-                    <div className='flex-1'>
-                      <div className='font-bold text-gray-900'>
-                        {model.name}
-                      </div>
-                      <div className='text-sm text-gray-700 mb-2'>
-                        {model.description}
-                      </div>
-                      <div className='flex flex-wrap gap-2 mb-2'>
-                        {model.features.map((feature, idx) => (
-                          <span
-                            key={idx}
-                            className='text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded'
-                          >
-                            {feature}
-                          </span>
-                        ))}
-                      </div>
-                      <div className='flex justify-between text-xs text-gray-600'>
-                        <span>⏱️ {model.speed}</span>
-                        <span className='font-semibold'>
-                          💰 Est. cost: {model.cost}
-                        </span>
-                      </div>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </Card>
-
-          <Card title='Step 3: Choose Evaluation Mode'>
+          <Card title='Step 2: Choose Evaluation Mode'>
             <div className='space-y-6'>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
                 <label
@@ -949,6 +890,65 @@ export default function AutoEvaluatePage() {
                   </div>
                 </div>
               )}
+            </div>
+          </Card>
+
+          <Card title='Step 3: Configure Evaluator Model'>
+            <div className='space-y-3'>
+              {evaluatorModels.map((model) => {
+                const isSemanticMode = evaluationMode === 'semantic';
+                const isDisabled = isSemanticMode && model.id !== 'embedding';
+                const isSelected = selectedEvaluator === model.id;
+                return (
+                  <label
+                    key={model.id}
+                    className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-300'
+                    } ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    <input
+                      type='radio'
+                      name='evaluator'
+                      value={model.id}
+                      checked={isSelected}
+                      onChange={(e) => {
+                        setSelectedEvaluator(e.target.value);
+                        if (e.target.value !== 'embedding') {
+                          setLastLLMEvaluator(e.target.value);
+                        }
+                      }}
+                      className='w-5 h-5 mt-1'
+                      disabled={evaluating || isDisabled}
+                    />
+                    <div className='flex-1'>
+                      <div className='font-bold text-gray-900'>
+                        {model.name}
+                      </div>
+                      <div className='text-sm text-gray-700 mb-2'>
+                        {model.description}
+                      </div>
+                      <div className='flex flex-wrap gap-2 mb-2'>
+                        {model.features.map((feature, idx) => (
+                          <span
+                            key={idx}
+                            className='text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded'
+                          >
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                      <div className='flex justify-between text-xs text-gray-600'>
+                        <span>⏱️ {model.speed}</span>
+                        <span className='font-semibold'>
+                          💰 Est. cost: {model.cost}
+                        </span>
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </Card>
 

@@ -130,16 +130,16 @@ export default function NewDatasetPage() {
     alert(`Imported ${newItems.length} items!`);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const createDataset = (shouldAutoEvaluate: boolean) => {
     if (!formData.name) {
       alert('Please enter dataset name!');
+      setCurrentTab('info');
       return;
     }
 
     if (items.length === 0) {
       alert('Please add at least one test item!');
+      setCurrentTab('questions');
       return;
     }
 
@@ -177,7 +177,27 @@ export default function NewDatasetPage() {
     alert(
       `Dataset "${formData.name}" created successfully with ${items.length} items!`
     );
-    router.push('/datasets');
+    if (shouldAutoEvaluate) {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          'auto_eval_rerun_config',
+          JSON.stringify({
+            datasetId: newDataset.id,
+            chatbotId: '',
+            evaluator: 'embedding',
+            mode: 'semantic',
+          })
+        );
+      }
+      router.push('/auto-evaluate');
+    } else {
+      router.push('/datasets');
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createDataset(false);
   };
 
   const tabClasses = (tab: typeof currentTab) =>
@@ -732,10 +752,19 @@ export default function NewDatasetPage() {
               >
                 ← Previous: Questions
               </Button>
-              <Button type='submit'>
-                Create Test Suite ({items.length} questions,{' '}
-                {criteria.filter((c) => c.enabled).length} criteria)
-              </Button>
+              <div className='flex gap-3'>
+                <Button
+                  type='button'
+                  variant='secondary'
+                  onClick={() => createDataset(true)}
+                >
+                  Tạo & Auto evaluate
+                </Button>
+                <Button type='submit'>
+                  Create Test Suite ({items.length} questions,{' '}
+                  {criteria.filter((c) => c.enabled).length} criteria)
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -743,5 +772,3 @@ export default function NewDatasetPage() {
     </div>
   );
 }
-
-
