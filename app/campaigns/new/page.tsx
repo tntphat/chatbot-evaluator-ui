@@ -57,6 +57,50 @@ type CampaignFormValues = {
 
 const DEFAULT_PRIORITY: TestItem['priority'] = 'medium';
 
+const SEMANTIC_ONLY_CRITERIA: EvaluationCriteria = {
+  checkAccuracy: true,
+  accuracyThreshold: DEFAULT_CRITERIA_THRESHOLDS.accuracy,
+  checkRelevance: false,
+  relevanceThreshold: DEFAULT_CRITERIA_THRESHOLDS.relevance,
+  checkCoherence: false,
+  coherenceThreshold: DEFAULT_CRITERIA_THRESHOLDS.coherence,
+  checkCompleteness: false,
+  completenessThreshold: DEFAULT_CRITERIA_THRESHOLDS.completeness,
+  checkToxicity: false,
+  toxicityThreshold: DEFAULT_CRITERIA_THRESHOLDS.toxicity,
+  checkHallucination: false,
+  hallucinationThreshold: DEFAULT_CRITERIA_THRESHOLDS.hallucination,
+  overallThreshold: DEFAULT_OVERALL_THRESHOLD,
+};
+
+const buildCriteriaFromCampaign = (campaign: Campaign): EvaluationCriteria => {
+  const metrics = campaign.metrics || [];
+  const thresholds = campaign.metricThresholds || {};
+
+  const getThreshold = (metric: keyof typeof DEFAULT_CRITERIA_THRESHOLDS) =>
+    (thresholds as Record<string, number | undefined>)[metric] ??
+    DEFAULT_CRITERIA_THRESHOLDS[metric];
+
+  return {
+    checkAccuracy: metrics.includes('accuracy') || metrics.length === 0,
+    accuracyThreshold: getThreshold('accuracy'),
+    checkRelevance: metrics.includes('relevance'),
+    relevanceThreshold: getThreshold('relevance'),
+    checkCoherence: metrics.includes('coherence'),
+    coherenceThreshold: getThreshold('coherence'),
+    checkCompleteness: metrics.includes('completeness'),
+    completenessThreshold: getThreshold('completeness'),
+    checkToxicity: metrics.includes('toxicity'),
+    toxicityThreshold: getThreshold('toxicity'),
+    checkHallucination: metrics.includes('hallucination'),
+    hallucinationThreshold: getThreshold('hallucination'),
+    overallThreshold:
+      typeof campaign.overallThreshold === 'number'
+        ? campaign.overallThreshold
+        : DEFAULT_OVERALL_THRESHOLD,
+  };
+};
+
 const deriveUserMessage = (item: TestItem): string => {
   if (item.question) return item.question;
   const firstUserTurn = item.conversation?.find(
@@ -485,7 +529,76 @@ export default function CampaignCreatePage() {
     return tasks.length;
   };
 
-  const handleSubmit = (values: CampaignFormValues) => {
+  const finalizeCampaignCreation = (
+    createdCampaign: Campaign,
+    datasetForCampaign: TestDataset,
+    startImmediately: boolean
+  ) => {
+    CampaignStorage.add(createdCampaign);
+    message.success('Campaign created successfully!');
+
+    if (startImmediately) {
+      const chatbotId = createdCampaign.chatbotIds?.[0];
+      if (!chatbotId) {
+        message.error('Campaign created but no chatbot selected to start.');
+        router.push('/campaigns');
+        return;
+      }
+
+      CampaignStorage.update(createdCampaign.id, {
+        status: 'running',
+        startedAt: new Date().toISOString(),
+        progress: 0,
+      });
+      message.success('Campaign started!');
+
+      if (typeof window !== 'undefined') {
+        const mode: 'semantic' | 'criteria' =
+          createdCampaign.evaluationMode ?? 'criteria';
+        const rerunConfig = {
+          datasetId: datasetForCampaign.id,
+          chatbotId,
+          evaluator: mode === 'semantic' ? 'embedding' : 'gpt-4',
+          mode,
+          criteria:
+            mode === 'semantic'
+              ? { ...SEMANTIC_ONLY_CRITERIA }
+              : buildCriteriaFromCampaign(createdCampaign),
+          campaignId: createdCampaign.id,
+        };
+        window.localStorage.setItem(
+          'auto_eval_rerun_config',
+          JSON.stringify(rerunConfig)
+        );
+      }
+    }
+
+    if (createdCampaign.evaluationType?.includes('human')) {
+      if (datasetForCampaign.items && datasetForCampaign.items.length > 0) {
+        const taskCount = createManualReviewTasks(
+          createdCampaign,
+          datasetForCampaign,
+          createdCampaign.chatbotIds || []
+        );
+        if (taskCount > 0) {
+          message.info(
+            `${taskCount} manual review task(s) created for this campaign.`
+          );
+        }
+      } else {
+        message.warning(
+          'Campaign created, but no manual review tasks were generated because the dataset has no items.'
+        );
+      }
+    }
+
+    router.push(startImmediately ? '/auto-evaluate' : '/campaigns');
+  };
+
+  const handleCreateCampaign = (
+    values: CampaignFormValues,
+    startImmediately: boolean
+  ) => {
     const datasetSource = values.datasetSource || 'existing';
     let datasetId: string | undefined = values.datasetId;
     let datasetForCampaign: TestDataset | null = null;
@@ -629,29 +742,15 @@ export default function CampaignCreatePage() {
       progress: 0,
     };
 
-    CampaignStorage.add(newCampaign);
-    message.success('Campaign created successfully!');
+    finalizeCampaignCreation(newCampaign, datasetForCampaign, startImmediately);
+  };
 
-    if (values.evaluationType?.includes('human')) {
-      if (datasetForCampaign.items && datasetForCampaign.items.length > 0) {
-        const taskCount = createManualReviewTasks(
-          newCampaign,
-          datasetForCampaign,
-          selectedChatbotId ? [selectedChatbotId] : []
-        );
-        if (taskCount > 0) {
-          message.info(
-            `${taskCount} manual review task(s) created for this campaign.`
-          );
-        }
-      } else {
-        message.warning(
-          'Campaign created, but no manual review tasks were generated because the dataset has no items.'
-        );
-      }
-    }
+  const handleSubmit = (values: CampaignFormValues) => {
+    handleCreateCampaign(values, false);
+  };
 
-    router.push('/campaigns');
+  const handleSubmitAndRun = (values: CampaignFormValues) => {
+    handleCreateCampaign(values, true);
   };
 
   return (
@@ -1188,14 +1287,32 @@ export default function CampaignCreatePage() {
           </Card>
 
           <Form.Item style={{ marginTop: 24 }}>
-            <Button
-              type='primary'
-              htmlType='submit'
-              icon={<SaveOutlined />}
-              size='large'
-            >
-              Create Campaign
-            </Button>
+            <Space size='middle'>
+              <Button
+                type='primary'
+                htmlType='submit'
+                icon={<SaveOutlined />}
+                size='large'
+              >
+                Create Campaign
+              </Button>
+              <Button
+                type='primary'
+                size='large'
+                onClick={() => {
+                  form
+                    .validateFields()
+                    .then((values) => {
+                      handleSubmitAndRun(values as CampaignFormValues);
+                    })
+                    .catch(() => {
+                      /* validation handled by form */
+                    });
+                }}
+              >
+                Create & Run Campaign
+              </Button>
+            </Space>
           </Form.Item>
         </Form>
       </Card>
