@@ -168,7 +168,7 @@ export interface EvaluationCriterion {
   name: string;
   description: string;
   weight: number; // 0-1 (e.g., 0.30 for 30%)
-  scale: '1-5' | '1-10' | 'pass-fail';
+  scale: '0-1' | '1-5' | '1-10' | 'pass-fail';
   rubric: RubricLevel[];
   enabled: boolean;
 }
