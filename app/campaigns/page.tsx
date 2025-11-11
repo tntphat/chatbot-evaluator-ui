@@ -62,8 +62,13 @@ export default function CampaignsPage() {
     setChatbots(ChatbotStorage.getAll() as Chatbot[]);
   };
 
-  const filteredCampaigns =
-    filter === 'all' ? campaigns : campaigns.filter((c) => c.status === filter);
+  const filteredCampaigns = (
+    filter === 'all' ? campaigns : campaigns.filter((c) => c.status === filter)
+  ).sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA || (a.id > b.id ? -1 : 1);
+  });
 
   const buildCriteriaFromCampaign = (
     campaign: Campaign
@@ -135,7 +140,11 @@ export default function CampaignsPage() {
     router.push('/auto-evaluate');
   };
 
-  const getChatbotNames = (chatbotIds: string[]) => {
+  const getChatbotNames = (chatbotIds?: string[] | null) => {
+    if (!Array.isArray(chatbotIds) || chatbotIds.length === 0) {
+      return '—';
+    }
+
     return chatbotIds
       .map((id) => chatbots.find((cb) => cb.id === id)?.name || 'Unknown')
       .join(', ');

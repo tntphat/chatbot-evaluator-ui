@@ -45,7 +45,7 @@ type EvaluationMode = 'semantic' | 'criteria';
 type CampaignFormValues = {
   name: string;
   description?: string;
-  chatbotIds: string[];
+  chatbotId?: string;
   evaluationType: Array<'automated' | 'human'>;
   datasetId: string;
   datasetSource?: 'existing' | 'manual' | 'import-json';
@@ -608,11 +608,13 @@ export default function CampaignCreatePage() {
       {}
     );
 
+    const selectedChatbotId = values.chatbotId;
+
     const newCampaign: Campaign = {
       id: `camp_${Date.now()}`,
       name: values.name,
       description: values.description || '',
-      chatbotIds: values.chatbotIds || [],
+      chatbotIds: selectedChatbotId ? [selectedChatbotId] : [],
       evaluationType: values.evaluationType || ['automated'],
       datasetId,
       status: 'draft' as const,
@@ -635,7 +637,7 @@ export default function CampaignCreatePage() {
         const taskCount = createManualReviewTasks(
           newCampaign,
           datasetForCampaign,
-          values.chatbotIds || []
+          selectedChatbotId ? [selectedChatbotId] : []
         );
         if (taskCount > 0) {
           message.info(
@@ -715,7 +717,7 @@ export default function CampaignCreatePage() {
             style={{ marginBottom: 16 }}
           >
             <Form.Item
-              name='chatbotIds'
+              name='chatbotId'
               rules={[
                 {
                   required: true,
@@ -728,25 +730,33 @@ export default function CampaignCreatePage() {
                 size='large'
                 allowClear
                 showSearch
-                optionFilterProp='children'
+                optionFilterProp='label'
+                optionLabelProp='label'
               >
                 {chatbots.length === 0 && (
-                  <Select.Option disabled value=''>
+                  <Select.Option disabled value='' label='No chatbots found'>
                     No chatbots found. Seed data via storage utilities.
                   </Select.Option>
                 )}
-                {chatbots.map((chatbot) => (
-                  <Select.Option key={chatbot.id} value={chatbot.id}>
-                    <div className='flex flex-col'>
-                      <span className='font-semibold text-gray-900'>
-                        {chatbot.name} ({chatbot.version})
-                      </span>
-                      <span className='text-xs text-gray-600'>
-                        {chatbot.description}
-                      </span>
-                    </div>
-                  </Select.Option>
-                ))}
+                {chatbots.map((chatbot) => {
+                  const optionLabel = `${chatbot.name} (${chatbot.version})`;
+                  return (
+                    <Select.Option
+                      key={chatbot.id}
+                      value={chatbot.id}
+                      label={optionLabel}
+                    >
+                      <div className='flex flex-col'>
+                        <span className='font-semibold text-gray-900'>
+                          {optionLabel}
+                        </span>
+                        <span className='text-xs text-gray-600'>
+                          {chatbot.description}
+                        </span>
+                      </div>
+                    </Select.Option>
+                  );
+                })}
               </Select>
             </Form.Item>
           </Card>
